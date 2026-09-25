@@ -204,7 +204,7 @@ private fun ActiveContent(
 
         Spacer(Modifier.height(24.dp))
 
-        // 状态行展示实际播放音源（打擂轮换、自由选择、本地音乐均如实反映）
+        // 状态行展示实际播放音源（轮换判定、自由选择、本地音乐均如实反映）
         Text(
             text = stringResource(
                 if (paused) R.string.status_paused_fmt else R.string.status_playing_fmt,

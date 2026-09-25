@@ -56,8 +56,11 @@ fun planDisplayName(state: PlaybackState, context: Context): String {
 }
 
 /**
- * 阶段展示名：本地音乐阶段显示曲目名（解析未就绪回退「本地音乐」）；
- * 快捷单阶段显示「快速 + 音源名」；标准/自定义四阶段按阶段序号取原版四阶段名。
+ * 阶段展示名：本地音乐阶段显示当前曲目名（解析未就绪回退「本地音乐」，优先级在四阶段名之前）；
+ * 快捷单阶段显示「快速 + 音源名」；标准/自定义四阶段按阶段固定身份
+ * [PlaybackState.stageId] 取原版四阶段名——阶段名是阶段身份的语言资源映射，
+ * 不随播放顺序（重排/注入）改变；[PlaybackState.phaseIndex] 只承担「阶段 i/N」的位置序号。
+ * stageId 缺失（旧状态）或越界时回退方案 id 兜底。
  */
 fun phaseDisplayName(state: PlaybackState, context: Context): String {
     val source = state.soundSource ?: return state.planId
@@ -67,7 +70,7 @@ fun phaseDisplayName(state: PlaybackState, context: Context): String {
     if (planKindOf(state.planId)?.first == "quick") {
         return context.getString(R.string.phase_quick_fmt, soundDisplayName(source, context))
     }
-    val nameRes = when (state.phaseIndex) {
+    val nameRes = when (state.stageId) {
         0 -> R.string.phase_warmup
         1 -> R.string.phase_activation
         2 -> R.string.phase_endurance

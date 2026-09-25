@@ -27,6 +27,7 @@ import com.github.gbandszxc.obt.domain.logic.EngineStatus
 import com.github.gbandszxc.obt.domain.logic.PhasePosition
 import com.github.gbandszxc.obt.domain.model.BurnPlan
 import com.github.gbandszxc.obt.domain.model.SoundSource
+import com.github.gbandszxc.obt.domain.model.nextPlayableIndex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -60,13 +61,15 @@ private enum class PauseReason {
  *
  * 职责划分（对应任务约定）：
  * - 本类承载全部控制逻辑：按 [BurnSequencer] 定位音源并以统一的 [BurnSoundPlayer]
- *   抽象驱动（合成音源走 AudioTrack 流式写入，
- *   本地音乐走 MediaPlayer 循环私有目录文件）、每秒 tick 检测播放身份（音源/本地音轨）
+ *   抽象驱动（合成音源走 AudioTrack 流式写入，本地音乐走 MediaPlayer 播放私有目录文件、
+ *   歌单循环由完成回调推进）、每秒 tick 检测播放身份（音源/歌单/序号）
  *   变化并无缝切换音源与增益（旧 player 释放、新 player 起播）、
  *   单调时钟锚点计时（[BurnProgressEngine.advanceTo]）、音频焦点、WakeLock、
  *   Room 进度落库（每 60 秒 + 暂停/继续/结束/完成时）；
- * - 本地音乐音源（[BurnPhase.localTrackId] 非空）：切阶段时经 [TrackRepository] 查库一次
- *   解析文件与展示名，[PlaybackState.soundSourceName] 显示曲目展示名；
+ * - 本地音乐音源（[BurnPhase.localTrackIds] 非空，本阶段按序循环该歌单）：切阶段时经
+ *   [TrackRepository] 查库一次解析文件与展示名，[PlaybackState.localTrackName] 显示当前曲目
+ *   展示名；歌单内一曲播完经 MediaPlayer 完成回调推进到下一可用曲目（见
+ *   [onPlaylistTrackCompleted]）；
  * - 方案续播：[start] 支持续播起点，进度引擎与音源定位均从该秒数起步，
  *   会话行初始 completedSeconds 即为该起点（可再次续播）；
  * - [BurnInService] 只负责前台保活与通知渲染（含煲机完成系统通知的渠道创建）；
@@ -113,13 +116,21 @@ class PlaybackController(
     private var activeSource: SoundSource? = null
 
     /**
-     * 当前播放器对应的本地音轨 id（null 表示非本地音乐音源）。
-     * 与 [activeSource] 共同构成「播放身份」：本地音源枚举固定为 [SoundSource.LOCAL_TRACK]，
-     * 两条不同本地音轨之间枚举相同但身份不同，仍需切换播放器。
+     * 当前播放器对应的本地歌单（null 表示非本地音乐音源；列表取自阶段，实例不可变）。
+     * 与 [activeSource]、[activePlaylistIndex] 共同构成「播放身份」三元组：本地音源枚举固定为
+     * [SoundSource.LOCAL_TRACK]，不同歌单（或同歌单的不同曲目序号）之间枚举相同但身份不同，
+     * 仍需切换播放器。
      */
-    private var activeLocalTrackId: Long? = null
+    private var activeLocalTrackIds: List<Long>? = null
 
-    /** 当前本地音轨的展示名；[PlaybackState.soundSourceName] 对本地音乐显示它。 */
+    /**
+     * 当前播放器在 [activeLocalTrackIds] 中的曲目序号；非歌单身份时恒为
+     * [NO_LOCAL_PLAYLIST]。歌单内推进由完成回调（[onPlaylistTrackCompleted]）专属管辖，
+     * tick 的身份对齐不按时间推此序号（曲目时长可能未知，时间制不可靠）。
+     */
+    private var activePlaylistIndex: Int = NO_LOCAL_PLAYLIST
+
+    /** 当前曲目的展示名（随 [activePlaylistIndex] 切歌更新）；[PlaybackState.localTrackName] 对本地音乐显示它。 */
     private var activeLocalTrackName: String? = null
 
     /**
@@ -263,7 +274,8 @@ class PlaybackController(
         }
         player = created.player
         activeSource = created.source
-        activeLocalTrackId = created.localTrackId
+        activeLocalTrackIds = created.localTrackIds
+        activePlaylistIndex = created.playlistIndex
         activeLocalTrackName = created.localTrackName
         activeGain = position.volumeRatio
 
@@ -348,9 +360,20 @@ class PlaybackController(
     }
 
     /**
-     * 每秒对齐播放链路与时序器定位：播放身份变化（阶段切换、打擂 30 分钟轮换，
-     * 或本地音轨与内置音源/另一条本地音轨之间切换）→ 创建新播放器并起播后再释放旧播放器
+     * 每秒对齐播放链路与时序器定位：播放身份变化（阶段切换、轮换 30 分钟音源切换、
+     * 或合成音源与本地歌单/另一份歌单之间切换）→ 创建新播放器并起播后再释放旧播放器
      * （主线程顺序执行，缝隙最小化）；身份未变但阶段增益变化 → 仅调整增益。
+     *
+     * 播放身份为三元组（音源枚举, 歌单, 曲目序号）。时序器只感知阶段与音源，不感知歌单内
+     * 曲目进度，故 tick 计算的目标序号在「歌单未变」时直接沿用当前序号——歌单内推进由
+     * 完成回调（[onPlaylistTrackCompleted]）专属管辖，tick 既不会因推进误判身份变化，
+     * 也绝不按阶段内已播时间反推曲目序号（曲目 durationMs 可能为 null，时间制不可靠）；
+     * 歌单变化（进入/切出/换歌单）时目标序号为 0（从歌单头起播）。因此 tick 层面的判定
+     * 实际落在「音源枚举变 || 歌单列表变」两项，序号维度的变化由 [switchToPlaylistIndex]
+     * 主动切换身份。
+     *
+     * 歌单相等性用 [List.equals]（内容相等即同一身份）：两个阶段携带内容相同的歌单时
+     * 跨阶段无缝续播当前曲目，不重启播放器。
      *
      * 本地音乐查库纪律：仅在「播放身份变化、确需切换」时经 [createPlayerFor] 查库一次，
      * 正常播放中身份不变的 tick 完全不查库（查库失败也缓存结果，见
@@ -361,15 +384,23 @@ class PlaybackController(
         val eng = engine ?: return
         val current = player ?: return
         val position = seq.positionAt(eng.completedSeconds)
-        // 本地音轨阶段：音源枚举固定为 LOCAL_TRACK（volumeRatio/循环由播放器与增益承担），
-        // 但播放身份以音轨 id 区分——不同音轨之间同样需要切换播放器
-        val targetLocalTrackId = position.phase.localTrackId
-        val targetSource = if (targetLocalTrackId != null) SoundSource.LOCAL_TRACK else position.soundSource
-        val targetChanged = targetSource != activeSource || targetLocalTrackId != activeLocalTrackId
+        // 本地歌单阶段：音源枚举固定为 LOCAL_TRACK（volumeRatio/循环由播放器与增益承担），
+        // 但播放身份以歌单与序号区分——不同歌单/曲目之间同样需要切换播放器
+        val targetPlaylist = position.phase.localTrackIds.ifEmpty { null }
+        val targetSource = if (targetPlaylist != null) SoundSource.LOCAL_TRACK else position.soundSource
+        val playlistUnchanged = targetPlaylist == activeLocalTrackIds
+        val targetIndex = if (playlistUnchanged) {
+            activePlaylistIndex
+        } else if (targetPlaylist != null) {
+            0
+        } else {
+            NO_LOCAL_PLAYLIST
+        }
+        val targetChanged = targetSource != activeSource || !playlistUnchanged
         if (targetChanged) {
             Log.i(
                 TAG,
-                "音源切换：${describeActiveSource()} → ${describeTarget(targetSource, targetLocalTrackId)}" +
+                "音源切换：${describeActiveSource()} → ${describeTarget(targetSource, targetPlaylist)}" +
                     "（阶段=${position.phase.name}，增益=${position.volumeRatio}）",
             )
             val created = try {
@@ -382,13 +413,14 @@ class PlaybackController(
                 null
             }
             if (created == null) {
-                Log.w(TAG, "目标音源不可用（本地音轨 id=$targetLocalTrackId），保留当前播放器")
+                Log.w(TAG, "目标音源不可用（本地歌单=$targetPlaylist），保留当前播放器")
                 return
             }
             safePlayback("switch-release") { current.release() }
             player = created.player
             activeSource = created.source
-            activeLocalTrackId = created.localTrackId
+            activeLocalTrackIds = created.localTrackIds
+            activePlaylistIndex = created.playlistIndex
             activeLocalTrackName = created.localTrackName
             activeGain = position.volumeRatio
             return
@@ -396,6 +428,64 @@ class PlaybackController(
         if (position.volumeRatio != activeGain) {
             safePlayback("gain") { current.setGain(position.volumeRatio) }
             activeGain = position.volumeRatio
+        }
+    }
+
+    /**
+     * 歌单内一曲播完的推进入口（MediaPlayer 完成回调，见 [createLocalFilePlayer]）：
+     * 仅当回调仍属当前播放身份（歌单内容相同且曲目序号相同）时有效——播放器被替换/释放后
+     * 残留的滞后回调直接忽略，避免对新身份二次推进；有效则按 [nextPlayableIndex] 计算
+     * 下一可用序号（跳过失效曲目、必要回绕），经主线程 scope 投递一次轻量切换
+     * （[switchToPlaylistIndex]）。全部曲目不可用属兜底路径（UI 层会在配置时修剪失效
+     * 曲目），保留当前播放器并记日志。
+     *
+     * 线程模型：MediaPlayer 在主线程创建，完成回调默认投递创建线程的 Looper（主线程），
+     * 与「全部播放操作在主线程」的既有模型一致，无并发竞争。
+     */
+    private fun onPlaylistTrackCompleted(playlist: List<Long>, index: Int) {
+        if (playlist != activeLocalTrackIds || index != activePlaylistIndex) return
+        val next = nextPlayableIndex(playlist, index, unavailableLocalTrackIds) ?: run {
+            Log.w(TAG, "歌单全部音轨不可用，无法推进（保留当前播放器）：$playlist")
+            return
+        }
+        switchToPlaylistIndex(next)
+    }
+
+    /**
+     * 按歌单序号切换播放身份（歌单推进专用，经主线程 scope 投递）：与 tick 的身份切换
+     * 同路径——先起新播放器并起播，成功后再释放旧播放器并登记新序号；目标曲目起不了
+     * 且无下一条可用曲目（[createPlayerFor] 返回 null，兜底见 [onPlaylistTrackCompleted]）
+     * 或回调排队期间阶段已切换（歌单不再匹配，交给 tick 按新阶段身份对齐）时放弃本次切换。
+     */
+    private fun switchToPlaylistIndex(index: Int) {
+        scope.launch {
+            val eng = engine ?: return@launch
+            val seq = sequencer ?: return@launch
+            val playlist = activeLocalTrackIds ?: return@launch
+            val position = seq.positionAt(eng.completedSeconds)
+            // 回调排队期间阶段已切换且歌单不再匹配：本次推进作废，交给 tick 按新阶段身份对齐
+            if (position.phase.localTrackIds != playlist) return@launch
+            val created = try {
+                createPlayerFor(position, playlistStartIndex = index)?.apply {
+                    player.setGain(position.volumeRatio)
+                    player.start()
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "歌单切歌失败，保留当前播放器", t)
+                null
+            }
+            if (created == null) {
+                Log.w(TAG, "歌单切歌无可用音轨（目标序号=$index），保留当前播放器")
+                return@launch
+            }
+            safePlayback("switch-release") { player?.release() }
+            player = created.player
+            activeSource = created.source
+            activeLocalTrackIds = created.localTrackIds
+            activePlaylistIndex = created.playlistIndex
+            activeLocalTrackName = created.localTrackName
+            activeGain = position.volumeRatio
+            publishState()
         }
     }
 
@@ -429,9 +519,9 @@ class PlaybackController(
             // 完成态只是 finishCompleted() 过渡，随后立即回 IDLE，通知层无需渲染
             EngineStatus.COMPLETED -> PlaybackStatus.PLAYING
         }
-        // 本地音乐阶段携带曲目展示名（切阶段时已随 createPlayerFor 解析并缓存），
-        // 极端时序（如解析尚未完成即发布）为 null，展示层回退「本地音乐」占位
-        val localTrack = position.phase.localTrackId != null
+        // 本地音乐阶段（歌单非空）携带当前曲目展示名（切歌/切阶段时已随 createPlayerFor 解析
+        // 并缓存），极端时序（如解析尚未完成即发布）为 null，展示层回退「本地音乐」占位
+        val isLocalPlaylist = position.phase.localTrackIds.isNotEmpty()
         _state.value = PlaybackState(
             status = status,
             sessionId = sessionId,
@@ -439,8 +529,10 @@ class PlaybackController(
             plannedSeconds = eng.plannedSeconds,
             completedSeconds = eng.completedSeconds,
             phaseIndex = position.phase.index,
-            soundSource = if (localTrack) SoundSource.LOCAL_TRACK else position.soundSource,
-            localTrackName = if (localTrack) activeLocalTrackName else null,
+            // 阶段固定身份随状态透出：展示层按它解析阶段名（语言资源），不随播放顺序改变
+            stageId = position.phase.stageId,
+            soundSource = if (isLocalPlaylist) SoundSource.LOCAL_TRACK else position.soundSource,
+            localTrackName = if (isLocalPlaylist) activeLocalTrackName else null,
         )
     }
 
@@ -451,7 +543,8 @@ class PlaybackController(
         sessionId = 0L
         tickCount = 0L
         activeSource = null
-        activeLocalTrackId = null
+        activeLocalTrackIds = null
+        activePlaylistIndex = NO_LOCAL_PLAYLIST
         activeLocalTrackName = null
         unavailableLocalTrackIds.clear()
         activeGain = Double.NaN
@@ -538,65 +631,103 @@ class PlaybackController(
     // ------------------------------------------------------------------
 
     /**
-     * 一次播放器创建的结果：播放器本体 + 需要登记的播放身份（音源枚举 / 本地音轨 id 与展示名）。
-     * startInternal 与 syncPlayback 共用，保证两处的身份登记口径一致。
+     * 一次播放器创建的结果：播放器本体 + 需要登记的播放身份（音源枚举 / 歌单与曲目序号 /
+     * 曲目展示名）。startInternal、syncPlayback 与 switchToPlaylistIndex 共用，
+     * 保证各处的身份登记口径一致。
      */
     private class CreatedPlayer(
         val player: BurnSoundPlayer,
         val source: SoundSource,
-        val localTrackId: Long?,
+
+        /** 本地歌单（合成音源为 null）。 */
+        val localTrackIds: List<Long>?,
+        val playlistIndex: Int,
         val localTrackName: String?,
     )
 
     /**
      * 按时序位置 [PhasePosition] 创建播放器：
-     * - 阶段含 localTrackId（本地音乐音源）：经 [TrackRepository.getById] 解析音轨
-     *   （**切阶段时仅查库这一次**），MediaPlayer(文件路径, isLooping=true) 无缝循环，
-     *   增益沿用 [BurnSoundPlayer.setGain]（MediaPlayer.setVolume）路径；
+     * - 阶段携带歌单（[BurnPhase.localTrackIds] 非空，本地音乐音源）：经 [TrackRepository.getById]
+     *   解析音轨（**切阶段时仅查库这一次**），MediaPlayer 播放私有目录文件，增益沿用
+     *   [BurnSoundPlayer.setGain]（MediaPlayer.setVolume）路径。起播序号取
+     *   [playlistStartIndex]（阶段切换默认 0；歌单推进传完成回调算好的下一序号），
+     *   **不按阶段内已播时间推歌单位置**——曲目 durationMs 可能为 null，时间制不可靠；
+     *   若该起点的音轨不可用，则从下一位起循环找歌单中下一条可用曲目（见
+     *   [nextPlayableIndex]）；
      * - 否则按内置合成音源走 [BurnSoundPlayers]（AudioTrack 流式写入）。
      *
-     * 本地音轨不可用（不存在/查库失败/文件打不开）返回 null 并把 id 记入
-     * [unavailableLocalTrackIds]，本会话内不再重复查库重试；调用方按「切换失败保留当前
-     * 播放器」（tick 中）或「音源初始化失败放弃会话」（startInternal 中）处理。
+     * 单条音轨不可用（不存在/查库失败/文件打不开）把 id 记入 [unavailableLocalTrackIds]
+     * 并转试下一条可用曲目；歌单全部不可用返回 null，调用方按「切换失败保留当前播放器」
+     * （tick / 歌单推进中）或「音源初始化失败放弃会话」（startInternal 中）处理——UI 层会在
+     * 配置时修剪失效曲目，此处为兜底。本会话内已判定不可用的 id 不再重复查库。
      */
-    private suspend fun createPlayerFor(position: PhasePosition): CreatedPlayer? {
-        val localTrackId = position.phase.localTrackId ?: return CreatedPlayer(
-            player = BurnSoundPlayers.create(position.soundSource),
-            source = position.soundSource,
-            localTrackId = null,
-            localTrackName = null,
-        )
-        if (localTrackId in unavailableLocalTrackIds) return null
-        return try {
-            val track: LocalTrack = trackRepository.getById(localTrackId) ?: run {
-                Log.w(TAG, "本地音轨不存在（id=$localTrackId，可能已被移除）")
-                unavailableLocalTrackIds += localTrackId
-                return null
-            }
-            val player = createLocalFilePlayer(trackRepository.playbackPath(track))
-            CreatedPlayer(
-                player = player,
-                source = SoundSource.LOCAL_TRACK,
-                localTrackId = track.id,
-                localTrackName = track.displayName,
+    private suspend fun createPlayerFor(
+        position: PhasePosition,
+        playlistStartIndex: Int = 0,
+    ): CreatedPlayer? {
+        val playlist = position.phase.localTrackIds
+        if (playlist.isEmpty()) {
+            return CreatedPlayer(
+                player = BurnSoundPlayers.create(position.soundSource),
+                source = position.soundSource,
+                localTrackIds = null,
+                playlistIndex = NO_LOCAL_PLAYLIST,
+                localTrackName = null,
             )
-        } catch (t: Throwable) {
-            Log.e(TAG, "本地音源创建失败（id=$localTrackId），本会话内不再重试", t)
-            unavailableLocalTrackIds += localTrackId
-            null
+        }
+        var index = playlistStartIndex.coerceIn(playlist.indices)
+        while (true) {
+            val trackId = playlist[index]
+            if (trackId !in unavailableLocalTrackIds) {
+                val track: LocalTrack? = try {
+                    trackRepository.getById(trackId)
+                } catch (t: Throwable) {
+                    Log.e(TAG, "本地音轨查询失败（id=$trackId）", t)
+                    null
+                }
+                if (track != null) {
+                    try {
+                        val player = createLocalFilePlayer(trackRepository.playbackPath(track), playlist, index)
+                        return CreatedPlayer(
+                            player = player,
+                            source = SoundSource.LOCAL_TRACK,
+                            localTrackIds = playlist,
+                            playlistIndex = index,
+                            localTrackName = track.displayName,
+                        )
+                    } catch (t: Throwable) {
+                        Log.e(TAG, "本地音源创建失败（id=$trackId），转试歌单下一条可用曲目", t)
+                    }
+                } else {
+                    Log.w(TAG, "本地音轨不存在（id=$trackId，可能已被移除），转试歌单下一条可用曲目")
+                }
+                unavailableLocalTrackIds += trackId
+            }
+            // 当前候选不可用：从下一位起循环找下一条可用曲目；绕整圈仍无 → 歌单全不可用
+            index = nextPlayableIndex(playlist, index, unavailableLocalTrackIds) ?: return null
         }
     }
 
     /**
-     * 本地音乐文件播放器：MediaPlayer(path, isLooping=true) 循环播放用户私有目录音轨，
-     * 按 [BurnSoundPlayer] 统一抽象包装（合成音源在 SynthPlayer.kt 走 AudioTrack，
-     * 本文件承载本地文件路径的 MediaPlayer 版本）。
+     * 本地音乐文件播放器：MediaPlayer(path) 播放用户私有目录音轨，按 [BurnSoundPlayer]
+     * 统一抽象包装（合成音源在 SynthPlayer.kt 走 AudioTrack，本文件承载本地文件路径的
+     * MediaPlayer 版本）。
+     *
+     * 歌单循环不走 MediaPlayer 的 isLooping（置 false）：单曲循环语义升级为「播完 →
+     * 推进到歌单下一可用曲目 → 切换播放器」，而 isLooping=true 时完成回调永不触发；
+     * 非循环重启带来的毫秒级换曲间隙对煲机场景无损（单曲歌单同样走此路径，保持语义统一）。
+     *
+     * 完成回调携带创建时固化的（[playlist]、[playlistIndex]）：回调经 [onPlaylistTrackCompleted]
+     * 校验「仍是当前播放身份」后才推进，避免被释放的旧播放器的滞后回调对新身份二次推进。
      */
-    private fun createLocalFilePlayer(path: String): BurnSoundPlayer {
+    private fun createLocalFilePlayer(path: String, playlist: List<Long>, playlistIndex: Int): BurnSoundPlayer {
         val mediaPlayer = MediaPlayer().apply {
             setDataSource(path)
-            isLooping = true
+            isLooping = false
             prepare()
+            setOnCompletionListener {
+                onPlaylistTrackCompleted(playlist, playlistIndex)
+            }
         }
         return object : BurnSoundPlayer {
             override fun start() {
@@ -623,14 +754,14 @@ class PlaybackController(
     }
 
     /** 当前播放身份的可读描述（日志用，内部标识非用户文案）。 */
-    private fun describeActiveSource(): String = when (val trackId = activeLocalTrackId) {
-        null -> activeSource?.name ?: "无"
-        else -> "本地音轨#$trackId"
+    private fun describeActiveSource(): String {
+        val playlist = activeLocalTrackIds ?: return activeSource?.name ?: "无"
+        return "本地歌单#$playlist@${activePlaylistIndex}"
     }
 
     /** 目标播放身份的可读描述（日志用，内部标识非用户文案）。 */
-    private fun describeTarget(source: SoundSource, localTrackId: Long?): String =
-        if (localTrackId != null) "本地音轨#$localTrackId" else source.name
+    private fun describeTarget(source: SoundSource, playlist: List<Long>?): String =
+        playlist?.let { "本地歌单#$it" } ?: source.name
 
     /**
      * 煲机完成系统通知：标题「煲机完成」，内容「本次煲机已达到计划时长，共 X」
@@ -676,7 +807,8 @@ class PlaybackController(
         safePlayback("release") { player?.release() }
         player = null
         activeSource = null
-        activeLocalTrackId = null
+        activeLocalTrackIds = null
+        activePlaylistIndex = NO_LOCAL_PLAYLIST
         activeLocalTrackName = null
         activeGain = Double.NaN
     }
@@ -709,6 +841,12 @@ class PlaybackController(
     private companion object {
         const val TAG = "PlaybackController"
         const val WAKE_LOCK_TAG = "burnin:playback"
+
+        /**
+         * 播放身份非歌单时 [activePlaylistIndex] 的占位序号（永不与合法歌单下标冲突，
+         * 仅用于身份三元组的相等性比较）。
+         */
+        const val NO_LOCAL_PLAYLIST = -1
 
         /** tick 周期：1 秒；实际秒数由 elapsedRealtime 锚点差推算，delay 误差不累积。 */
         const val TICK_INTERVAL_MILLIS = 1_000L

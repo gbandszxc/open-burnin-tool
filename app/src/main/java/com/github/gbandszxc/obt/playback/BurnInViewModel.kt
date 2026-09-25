@@ -55,7 +55,7 @@ sealed interface FreeSoundSelection {
     /** 内置音源（如白噪音/粉红噪音）。 */
     data class Builtin(val sound: SoundSource) : FreeSoundSelection
 
-    /** 本地音乐曲目（播放走 LOCAL_TRACK 音源 + 曲目文件，见 [BurnPlans.quick] 的 localTrackId 参数）。 */
+    /** 本地音乐曲目（播放走 LOCAL_TRACK 音源 + 曲目文件，见 [BurnPlans.quick] 的 localTrackIds 参数）。 */
     data class LocalMusic(val track: LocalTrack) : FreeSoundSelection
 
     companion object {
@@ -302,7 +302,7 @@ class BurnInViewModel(
             is FreeSoundSelection.Builtin -> BurnPlans.quick(hours, selection.sound)
             is FreeSoundSelection.LocalMusic -> BurnPlans.quick(
                 hours,
-                localTrackId = selection.track.id,
+                localTrackIds = listOf(selection.track.id),
                 soundLabel = selection.track.displayName,
             )
         }

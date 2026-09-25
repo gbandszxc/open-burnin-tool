@@ -79,10 +79,12 @@ object BurnPlans {
      *
      * [sound] 默认白噪——白噪默认增益恰为原版第一阶段（舒缓）的温和音量 1/5。
      *
-     * 本地音乐自定义音源：[localTrackId] 非空时本方案播放对应本地音轨
-     * （Room local_tracks 表），此时 [sound] 被忽略、阶段音源强制为 [SoundSource.LOCAL_TRACK]，
+     * 本地音乐自定义音源：[localTrackIds] 非空时本方案播放对应本地音轨歌单
+     * （Room local_tracks 表；自由煲机单曲路径传单元素列表），此时 [sound] 被忽略、
+     * 阶段音源强制为 [SoundSource.LOCAL_TRACK]，
      * 阶段音量取其默认增益（7/15，本地音源阶段的占位音量）；阶段名用 [soundLabel]
-     * （如曲目名，空白时回退 "local_track" 标识）。
+     * （如曲目名，空白时回退 "local_track" 标识）。歌单 id 非法（非正/重复）由
+     * [BurnPhase] 约束拒绝。
      *
      * 单阶段方案阶段身份固定为 0（唯一阶段，合法即可）。
      *
@@ -92,19 +94,19 @@ object BurnPlans {
     fun quick(
         hours: Int,
         sound: SoundSource = SoundSource.WHITE_NOISE,
-        localTrackId: Long? = null,
+        localTrackIds: List<Long> = emptyList(),
         soundLabel: String? = null,
     ): BurnPlan {
         require(hours > 0) { "快捷预设小时数必须为正数：$hours" }
         val label = soundLabel?.trim()?.takeIf { it.isNotEmpty() }
-        val phase = if (localTrackId != null) {
+        val phase = if (localTrackIds.isNotEmpty()) {
             BurnPhase(
                 index = 0,
                 name = label ?: "local_track",
                 durationSeconds = hours * 3_600L,
                 soundSource = SoundSource.LOCAL_TRACK,
                 volumeRatio = SoundSource.LOCAL_TRACK.defaultGainRatio,
-                localTrackId = localTrackId,
+                localTrackIds = localTrackIds,
                 stageId = 0,
             )
         } else {

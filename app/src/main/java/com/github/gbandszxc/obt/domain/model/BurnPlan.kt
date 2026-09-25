@@ -25,14 +25,11 @@ package com.github.gbandszxc.obt.domain.model
  *   注意：与本阶段携带 [localTrackIds] 歌单互斥。
  * @property alternateEverySeconds 轮换周期（秒）。标准方案的轮换阶段为 1800（30 分钟），
  *   按「阶段内已播秒数 / 周期」的奇偶切换基准音源与 [alternateWith]。
- * @property localTrackId 本地音乐音轨 id（Room local_tracks 表，见
- *   com.github.gbandszxc.obt.data.LocalTrack）；**非空时本阶段循环播放该本地音乐文件，
- *   音量走 [volumeRatio]，[soundSource]/[alternateWith]/[alternateEverySeconds] 不参与本阶段**。
- *   默认 null 保持既有行为（历史调用点零改动）。
- * @property localTrackIds 本地音乐有序歌单（同表音轨 id 列表）；**非空表示本阶段循环播放
- *   该有序歌单，音量走 [volumeRatio]，[alternateWith]/[alternateEverySeconds] 不参与本阶段，
- *   且 [soundSource] 必须为 [SoundSource.LOCAL_TRACK]**。与 [localTrackId] 的关系
- *   （是否收口合并）由后续播放层单元处理；默认空列表保持既有行为。
+ * @property localTrackIds 本地音乐有序歌单（Room local_tracks 表音轨 id 列表，见
+ *   com.github.gbandszxc.obt.data.LocalTrack）；**非空表示本阶段循环播放该有序歌单
+ *   （本地音乐阶段的唯一表达，单曲即单元素列表），音量走 [volumeRatio]，
+ *   [alternateWith]/[alternateEverySeconds] 不参与本阶段，
+ *   且 [soundSource] 必须为 [SoundSource.LOCAL_TRACK]**。默认空列表表示合成音源阶段。
  */
 data class BurnPhase(
     val index: Int,
@@ -42,7 +39,6 @@ data class BurnPhase(
     val volumeRatio: Double,
     val alternateWith: SoundSource? = null,
     val alternateEverySeconds: Long? = null,
-    val localTrackId: Long? = null,
     val stageId: Int = -1,
     val localTrackIds: List<Long> = emptyList(),
 ) {
@@ -54,9 +50,6 @@ data class BurnPhase(
         }
         if (alternateEverySeconds != null) {
             require(alternateEverySeconds > 0) { "轮换周期必须为正数：$alternateEverySeconds" }
-        }
-        require(localTrackId == null || localTrackId > 0L) {
-            "本地音轨 id 必须为正数：$localTrackId"
         }
         // 有序歌单约束：id 全为正数且不重复；与轮换互斥；音源必须为本地音乐占位枚举
         if (localTrackIds.isNotEmpty()) {
@@ -79,6 +72,25 @@ data class BurnPhase(
         val switchParity = (elapsedInPhaseSeconds.coerceAtLeast(0L) / period) % 2L
         return if (switchParity == 1L) alternate else soundSource
     }
+}
+
+/**
+ * 有序歌单的「下一可用曲目」定位：从 [from] 的下一位起去重保序循环查找
+ * （绕整圈恰好覆盖全部候选，含单元素歌单回环到自身），跳过 [unavailable] 中
+ * 已判定不可用的音轨 id；全部音轨不可用返回 null。
+ *
+ * 纯逻辑（只依赖入参与 [List.equals]，不查库不做 IO），供播放链路在曲目播完/
+ * 起播失败时计算推进目标，JVM 单测覆盖（见 NextPlayableIndexTest）。
+ *
+ * @param from 当前播放序号（调用方保证落在歌单下标范围内；越界按模运算回环，不抛错）。
+ */
+internal fun nextPlayableIndex(playlist: List<Long>, from: Int, unavailable: Set<Long>): Int? {
+    if (playlist.isEmpty()) return null
+    for (step in 1..playlist.size) {
+        val candidate = Math.floorMod(from + step, playlist.size)
+        if (playlist[candidate] !in unavailable) return candidate
+    }
+    return null
 }
 
 /**

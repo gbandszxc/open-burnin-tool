@@ -44,20 +44,25 @@ class PlaybackStateTest {
         assertEquals(0, idle.phaseIndex)
         assertNull(idle.soundSource)
         assertNull(idle.localTrackName)
+        // 空闲无阶段：阶段固定身份缺省为 null（展示层阶段名解析回退兜底）
+        assertNull(idle.stageId)
         assertFalse(idle.isPaused)
     }
 
     @Test
     fun `结构化播放身份随状态透传`() {
-        // 展示名不进状态：只携带阶段序号与音源枚举（含轮换结果），显示文案由展示层解析
+        // 展示名不进状态：只携带阶段位置序号 + 阶段固定身份 + 音源枚举（含轮换结果），
+        // 显示文案由展示层解析——阶段名按 stageId 经语言资源解析，「阶段 i/N」的 i 用 phaseIndex
         val state = PlaybackState(
             status = PlaybackStatus.PLAYING,
             planId = "classic_120h",
-            phaseIndex = 3,
+            phaseIndex = 0,
+            stageId = 3,
             soundSource = SoundSource.PINK_NOISE,
         )
         assertEquals("classic_120h", state.planId)
-        assertEquals(3, state.phaseIndex)
+        assertEquals(0, state.phaseIndex)
+        assertEquals(3, state.stageId)
         assertEquals(SoundSource.PINK_NOISE, state.soundSource)
     }
 }

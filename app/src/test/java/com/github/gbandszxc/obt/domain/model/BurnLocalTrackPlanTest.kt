@@ -6,17 +6,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 本地音乐自定义音源的方案模型测试：
- * - [BurnPhase.localTrackId] / [BurnPhase.localTrackIds] 新增默认参数的向后兼容（历史调用零改动）；
+ * 本地音乐阶段的方案模型测试（唯一音乐表达为 [BurnPhase.localTrackIds]，单曲即单元素列表）：
+ * - 歌单字段默认空列表的向后兼容（合成音源历史构造零改动）；
  * - 歌单字段的模型约束（id 正数且唯一、与轮换互斥、音源强制 LOCAL_TRACK）；
- * - [BurnPlans.quick] 本地音乐参数组合（soundSource 强制 LOCAL_TRACK、阶段名/显示名用 soundLabel）。
+ * - [BurnPlans.quick] 本地音乐参数组合（soundSource 强制 LOCAL_TRACK、阶段名用 soundLabel）。
  */
 class BurnLocalTrackPlanTest {
 
     // ---- BurnPhase 默认参数兼容性 ----
 
     @Test
-    fun `BurnPhase缺省localTrackId为null且历史构造方式等价`() {
+    fun `BurnPhase缺省localTrackIds为空且历史构造方式等价`() {
         val legacy = BurnPhase(0, "gentle", 100L, SoundSource.WHITE_NOISE, 0.2)
         val explicit = BurnPhase(
             index = 0,
@@ -26,44 +26,31 @@ class BurnLocalTrackPlanTest {
             volumeRatio = 0.2,
             alternateWith = null,
             alternateEverySeconds = null,
-            localTrackId = null,
+            localTrackIds = emptyList(),
         )
         assertEquals(explicit, legacy)
-        assertNull(legacy.localTrackId)
-        // copy 不传即保持 null，既有 custom() 等调用点不受新参数影响
-        assertNull(legacy.copy(index = 1).localTrackId)
+        assertTrue(legacy.localTrackIds.isEmpty())
+        // copy 不传即保持空列表，既有 custom() 等调用点不受影响
+        assertTrue(legacy.copy(index = 1).localTrackIds.isEmpty())
     }
 
     @Test
-    fun `BurnPhase缺省localTrackIds为空且与localTrackId相互独立`() {
-        val phase = BurnPhase(0, "gentle", 100L, SoundSource.WHITE_NOISE, 0.2)
-        assertTrue(phase.localTrackIds.isEmpty())
-        // 单音轨字段不牵动歌单字段；历史构造点零改动
-        val single = phase.copy(localTrackId = 9L)
-        assertTrue(single.localTrackIds.isEmpty())
-        // 歌单字段独立赋值（歌单要求音源为 LOCAL_TRACK，换音源验证互不牵动）
-        val playlist = single.copy(
-            localTrackId = null,
+    fun `BurnPhase携带单曲歌单时其余默认参数不变`() {
+        // 单曲 = 单元素歌单：本地音乐阶段不另设单音轨字段，播放层同走有序循环路径
+        val phase = BurnPhase(
+            index = 0,
+            name = "本地曲目",
+            durationSeconds = 3_600L,
             soundSource = SoundSource.LOCAL_TRACK,
-            localTrackIds = listOf(1L, 2L),
+            volumeRatio = 1.0 / 3.0,
+            stageId = 0,
+            localTrackIds = listOf(9L),
         )
-        assertNull(playlist.localTrackId)
-        assertEquals(listOf(1L, 2L), playlist.localTrackIds)
-    }
-
-    @Test
-    fun `BurnPhase携带localTrackId时其余默认参数不变`() {
-        val phase = BurnPhase(0, "本地曲目", 3_600L, SoundSource.LOCAL_TRACK, 1.0 / 3.0, localTrackId = 9L)
-        assertEquals(9L, phase.localTrackId)
+        assertEquals(listOf(9L), phase.localTrackIds)
         assertNull(phase.alternateWith)
         assertNull(phase.alternateEverySeconds)
         assertEquals(SoundSource.LOCAL_TRACK, phase.soundSourceAt(0L))
         assertEquals(SoundSource.LOCAL_TRACK, phase.soundSourceAt(1_800L))
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun `BurnPhase本地音轨id非正被拒绝`() {
-        BurnPhase(0, "坏音轨", 100L, SoundSource.LOCAL_TRACK, 0.2, localTrackId = 0L)
     }
 
     // ---- BurnPhase 有序歌单约束 ----
@@ -121,13 +108,13 @@ class BurnLocalTrackPlanTest {
 
     @Test
     fun `quick本地音乐_音源强制LOCAL_TRACK且音量取其默认增益`() {
-        val plan = BurnPlans.quick(8, localTrackId = 5L, soundLabel = "我的一曲.flac")
+        val plan = BurnPlans.quick(8, localTrackIds = listOf(5L), soundLabel = "我的一曲.flac")
         assertEquals("quick_8h", plan.id)
         assertEquals(8 * 3_600L, plan.totalSeconds)
         assertEquals(1, plan.phases.size)
 
         val phase = plan.phases[0]
-        assertEquals(5L, phase.localTrackId)
+        assertEquals(listOf(5L), phase.localTrackIds)
         assertEquals(SoundSource.LOCAL_TRACK, phase.soundSource)
         assertEquals(SoundSource.LOCAL_TRACK.defaultGainRatio, phase.volumeRatio, 1e-9)
         assertNull(phase.alternateWith)
@@ -136,7 +123,7 @@ class BurnLocalTrackPlanTest {
 
     @Test
     fun `quick本地音乐_阶段名与显示名用soundLabel`() {
-        val plan = BurnPlans.quick(8, localTrackId = 5L, soundLabel = "我的一曲.flac")
+        val plan = BurnPlans.quick(8, localTrackIds = listOf(5L), soundLabel = "我的一曲.flac")
         // phase.name 是日志/测试用内部标识：带 soundLabel（曲目名）便于日志定位；plan.name 即 planId
         assertEquals("我的一曲.flac", plan.phases[0].name)
         assertEquals("quick_8h", plan.name)
@@ -144,19 +131,19 @@ class BurnLocalTrackPlanTest {
 
     @Test
     fun `quick本地音乐_未传或空白标签回退默认文案`() {
-        val unlabeled = BurnPlans.quick(2, localTrackId = 7L)
+        val unlabeled = BurnPlans.quick(2, localTrackIds = listOf(7L))
         assertEquals("local_track", unlabeled.phases[0].name)
         assertEquals("quick_2h", unlabeled.name)
 
-        val blankLabeled = BurnPlans.quick(2, localTrackId = 7L, soundLabel = "   ")
+        val blankLabeled = BurnPlans.quick(2, localTrackIds = listOf(7L), soundLabel = "   ")
         assertEquals("local_track", blankLabeled.phases[0].name)
     }
 
     @Test
     fun `quick本地音乐时忽略sound参数`() {
-        val plan = BurnPlans.quick(8, SoundSource.PINK_NOISE, localTrackId = 3L, soundLabel = "曲目A")
+        val plan = BurnPlans.quick(8, SoundSource.PINK_NOISE, localTrackIds = listOf(3L), soundLabel = "曲目A")
         assertEquals(SoundSource.LOCAL_TRACK, plan.phases[0].soundSource)
-        assertEquals(3L, plan.phases[0].localTrackId)
+        assertEquals(listOf(3L), plan.phases[0].localTrackIds)
         assertEquals(SoundSource.LOCAL_TRACK.defaultGainRatio, plan.phases[0].volumeRatio, 1e-9)
     }
 
@@ -166,7 +153,6 @@ class BurnLocalTrackPlanTest {
         assertEquals("quick_8h", plan.id)
         assertEquals("quick_8h", plan.name)
         val phase = plan.phases[0]
-        assertNull(phase.localTrackId)
         assertTrue(phase.localTrackIds.isEmpty())
         assertEquals("quick_WHITE_NOISE", phase.name)
         assertEquals(SoundSource.WHITE_NOISE, phase.soundSource)

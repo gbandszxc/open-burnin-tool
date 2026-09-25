@@ -130,15 +130,18 @@ class BurnInService : Service() {
     }
 
     /**
-     * 通知重建判定：状态档位、会话、方案、阶段序号任一变化才重建；
+     * 通知重建判定：状态档位、会话、方案、阶段序号、曲目名任一变化才重建；
      * 每秒 tick 引起的已煲/剩余变化交给 chronometer 自走，避免每秒整条重建。
+     * localTrackName 进渲染键：歌单循环内切歌属离散变化，通知正文的阶段/曲目名要即时换成
+     * 新曲目，不能等下一次阶段切换。
      */
     private fun shouldRerender(newState: PlaybackState): Boolean {
         val last = lastRendered ?: return true
         return last.status != newState.status ||
             last.sessionId != newState.sessionId ||
             last.planId != newState.planId ||
-            last.phaseIndex != newState.phaseIndex
+            last.phaseIndex != newState.phaseIndex ||
+            last.localTrackName != newState.localTrackName
     }
 
     private fun notifySafely(state: PlaybackState) {

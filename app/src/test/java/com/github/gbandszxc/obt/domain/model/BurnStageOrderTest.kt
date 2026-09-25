@@ -129,7 +129,6 @@ class BurnStageOrderTest {
         assertEquals(SoundSource.LOCAL_TRACK.defaultGainRatio, steady.volumeRatio, 1e-9)
         assertEquals(259_200L, steady.durationSeconds)
         assertEquals(listOf(11L, 5L, 9L), steady.localTrackIds)
-        assertNull(steady.localTrackId) // 单音轨字段留待播放层单元收口
         assertNull(steady.alternateWith)
         assertNull(steady.alternateEverySeconds)
 
