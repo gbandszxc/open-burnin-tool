@@ -17,7 +17,7 @@ package com.github.gbandszxc.obt.domain.model
  *   会拒绝默认值——同方案内 stageId 必须唯一且 >= 0，编排入口须显式传入；
  *   快捷单阶段方案固定取 0。stageId 一经确定不随播放顺序改变。
  * @property name 阶段内部标识（gentle/adapt/steady/alternate 等，仅日志/测试用）；
- *   用户可见的阶段名由展示层按阶段序号经资源解析（见 ui/PlanDisplay.kt）。
+ *   用户可见的阶段名由展示层按阶段身份 stageId 经资源解析（见 ui/PlanDisplay.kt），排序后名字随身份走。
  * @property durationSeconds 阶段时长（秒）。
  * @property soundSource 基准音源。
  * @property volumeRatio 音量比例，取值 [0.0, 1.0]，如标准四阶段为 1/5、1/3、7/15、3/5；

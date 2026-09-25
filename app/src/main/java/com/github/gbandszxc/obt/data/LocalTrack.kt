@@ -10,7 +10,7 @@ import androidx.room.PrimaryKey
  * `context.filesDir/burn_music/` 内（应用私有目录，卸载即清理），
  * 文件名与记录的映射、防越权删除逻辑见 [TrackRepository]。
  *
- * @property id 自增主键（[BurnPhase.localTrackId][com.github.gbandszxc.obt.domain.model.BurnPhase] 引用此 id）。
+ * @property id 自增主键（[BurnPhase.localTrackIds][com.github.gbandszxc.obt.domain.model.BurnPhase] 有序歌单引用此 id）。
  * @property displayName 展示名（导入时的原始文件名去扩展名前的完整名，UI 显示与播放状态用）。
  * @property fileName 应用私有目录内的文件名（uuid + 原扩展名），播放时经
  *   [TrackRepository.playbackPath] 解析为绝对路径。

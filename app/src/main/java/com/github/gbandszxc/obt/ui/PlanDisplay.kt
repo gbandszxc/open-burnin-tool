@@ -8,7 +8,7 @@ import com.github.gbandszxc.obt.domain.model.SoundSource
 import com.github.gbandszxc.obt.playback.PlaybackState
 
 /**
- * 方案/阶段/音源展示名解析：域与播放层只携带结构化身份（planId/阶段序号/音源枚举），
+ * 方案/阶段/音源展示名解析：域与播放层只携带结构化身份（planId/阶段身份 stageId/音源枚举），
  * 显示文案由本文件按当前应用语言经资源统一解析，供 Compose UI 与前台服务通知共用。
  * 语言切换后无需等待播放状态重新发布，任何展示点即时得到新语言文案。
  */

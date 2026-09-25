@@ -39,7 +39,7 @@ data class PhasePosition(
  * 播放链路以本时序器的剩余秒语义为准，与原版逐秒对齐（含轮换阶段开场基准音源先播 1 秒的边界行为：
  * 阶段剩余 86400s 恰为周期的整数倍，其后即进入 1800s 的粉噪/白噪交替段）。
  *
- * 携带本地歌单（[BurnPhase.localTrackIds] 非空）的阶段与 localTrackId 阶段同语义：
+ * 携带本地歌单（[BurnPhase.localTrackIds] 非空）的阶段：
  * soundSourceAt 返回阶段基准音源（LOCAL_TRACK 占位枚举），阶段无轮换配置、判定天然直通；
  * 按列表顺序定位天然支持 [BurnPlan.withStageOrder] 的重排方案，无需改动。
  *

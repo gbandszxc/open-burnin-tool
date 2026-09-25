@@ -13,6 +13,7 @@
 - **方案煲机**（`BurnMode.PLAN`，`playback/BurnInViewModel.kt`）
   - 标准四阶段 · 120 小时：舒缓 12h 白噪（1/5 音量）→ 适应 12h 粉噪（1/3）→ 稳定 72h 粉噪恒定（7/15）→ 轮换 24h 白噪↔粉噪每 30 分钟轮换（3/5）（`domain/model/BurnPlans.kt`；阶段时长/音量沿原版逆向结论，内置音乐音源已移除，音源为本版合成编排）。
   - 自定义四阶段：总时长 24–240 小时（默认 48，步进 ±12，`BurnInUiState.PLAN_CUSTOM_HOURS_RANGE/_STEP`），按 10/10/60/20 比例缩放到四阶段，轮换阶段轮换周期保持 30 分钟（`BurnPlans.custom`）。
+  - 阶段编排：四阶段播放顺序可拖拽调整；各阶段响度可按阶段身份覆盖（1–100，默认仍为 1/5、1/3、7/15、3/5）；稳定阶段可在「粉噪恒定」与「本地音乐（单曲或多曲有序歌单）」间切换替换粉噪。编排作用于标准与自定义两种四阶段方案并持久记忆（DataStore，缺省为顺序 0..3、无响度覆盖、粉噪恒定）（`ui/burnin/StageArrangementSection.kt`；域层 `BurnPlan.withStageOrder`/`BurnPlan.withStageGains`，`BurnPlans.classic`/`BurnPlans.custom` 的 `steadyTrackIds` 稳定阶段注入）。
 - **自由煲机**（`BurnMode.FREE`）
   - 音源任选：内置 7 合成音源或已导入的本地音乐（分组下拉，`ui/burnin/SoundSourceDropdown.kt`）。
   - 时长预设 2/8/16/24/48/72 小时（`BurnPlans.QUICK_HOURS`，默认 8h），或自定义 1–999 小时（预设与自定义互斥，`BurnInUiState.FREE_CUSTOM_HOURS_RANGE`）。
@@ -21,7 +22,7 @@
 ### 音源（`domain/model/SoundSource.kt`、`playback/SynthPlayer.kt`）
 
 - 7 种合成音源：正弦波 300Hz、粉红噪音（Paul Kellet 滤波 + 运行峰值归一化）、方波 150Hz、白噪音、低频扫频 100–200Hz（40s 循环）、混合煲机（白噪+粉噪各 50%）、宽频扫频 100Hz–10kHz（74s 循环）。UI 音效目录取 `SoundSource.catalog`（不含本地音源占位项）。
-- 自定义本地音乐：系统文件选择器（SAF）导入音频文件，拷贝进应用私有目录并循环播放（`data/TrackRepository.kt`、`playback/BurnInViewModel.importTrack`）；支持移除（删文件 + 删记录，二次确认）。方案模型以 `SoundSource.LOCAL_TRACK`（不入 UI 目录）+ `BurnPhase.localTrackId` 表达，播放时 UI 显示曲目名。
+- 自定义本地音乐：系统文件选择器（SAF）导入音频文件，拷贝进应用私有目录并循环播放（`data/TrackRepository.kt`、`playback/BurnInViewModel.importTrack`）；支持移除（删文件 + 删记录，二次确认）。方案模型以 `SoundSource.LOCAL_TRACK`（不入 UI 目录）+ `BurnPhase.localTrackIds` 有序歌单表达（单曲即单元素歌单），播放时 UI 显示曲目名。方案内本地音乐阶段按歌单顺序循环播放：一曲播完自动接下一曲（末尾回环），通知曲名即时更新；失效曲目（被删除/不可读）自动跳到下一条可用曲目，全部失效回退既有兜底音源；编排配置中勾选的曲目被删除时自动修剪歌单，清空后回退粉噪恒定。
 
 ### 进度记录（记录页，`ui/history/HistoryTab.kt`）
 
@@ -34,6 +35,7 @@
 
 - 前台服务保活，通知常驻：播放中显示剩余时间倒计时（系统 chronometer），动作按钮暂停/继续、结束；点通知回到应用。
 - 音频焦点：短暂丢失（来电等）暂停并在焦点回归后自动恢复；永久丢失保持暂停。拔耳机即暂停。
+- 响度策略：方案煲机（标准/自定义四阶段）各阶段响度经系统媒体音量（STREAM_MUSIC）按比例映射表达（起播记录原音量、暂停/结束恢复，设置失败会话级降级回播放器增益）；自由煲机维持播放器级增益。方案内本地音乐阶段切歌时，通知正文曲名即时刷新。
 - Application 级播放控制器：进程存活期间后台持续播放，重新打开 App 直接恢复到进行中界面（含阶段与音源定位）。
 - 进度持久化：每 60 秒 + 暂停/继续/结束/完成时落库（Room，`data/BurnInSession.kt`）；到达计划时长发出「煲机完成」系统通知（渠道 `burn_complete`，默认重要级；内容含定格的已煲时长，点击回到应用）并标记「已完成」，应用内弹一次 Snackbar。未授予通知权限时静默跳过。
 
@@ -54,11 +56,12 @@
 - 支持简体中文与英文；默认「跟随系统」自动检测（中文系统 → 中文，其余 → 英文）。
 - 设置页「通用 → 语言」三选一：跟随系统 / 中文 / English；切换即时生效（更新进程内语言并重建界面），后台播放中的通知同步换语言。
 - 应用内切换覆盖系统语言且重启后保持（DataStore 持久化）；Activity 与前台服务在 `attachBaseContext` 统一经 `AppLocale.wrap` 应用语言。
-- 文案单一来源：全部用户可见文案入 `res/values/`（英文默认）与 `res/values-zh/`（中文）；方案/阶段/音源展示名由播放状态的结构化身份（planId/阶段序号/音源枚举）在展示层按语言解析（`ui/PlanDisplay.kt`），域层 `BurnPlan.name`/`BurnPhase.name` 仅为内部标识。
+- 文案单一来源：全部用户可见文案入 `res/values/`（英文默认）与 `res/values-zh/`（中文）；方案/阶段/音源展示名由播放状态的结构化身份（planId/阶段身份 stageId/音源枚举）在展示层按语言解析（`ui/PlanDisplay.kt`），域层 `BurnPlan.name`/`BurnPhase.name` 仅为内部标识。
 
 ## 交互要点
 
 - **可续播**：标准/自定义方案有未完成会话时，方案卡显示「上次进度」，提供「继续」（从已完成秒数续播）与「全新开始」（旧检查点作废）双入口（`ui/burnin/BurnInIdleContent.kt`、`playback/PlaybackController.start`）。同一方案至多保留一个可续检查点。
+- **阶段编排**：方案煲机配置卡内拖拽排序（长按手柄拖动，松手提交）、响度 1–100 行内校验、稳定阶段音乐开关与曲目勾选均即时保存（DataStore 记忆）；配置在点「开始/继续」时生效——开始与续播均按**当前配置**组装方案（续播沿用新顺序/响度/歌单，属记忆语义；方案 id 不随编排变化，续播会话匹配口径不受影响）（`playback/BurnInViewModel.startClassicPlan`/`startCustomPlan`）。
 - **二次确认**：结束本次煲机（打开确认框即暂停并定格已煲秒数，取消自动恢复）、清除全部记录、移除本地音乐。
 - **说明模式（InfoAction）**：多行说明性段落收进行尾 ⓘ 图标弹窗（煲机提示、自定义四阶段比例、不息屏模式说明），页面内只留单行功能性提示与校验错误（`ui/InfoDialog.kt`）。
 - **输入校验**：小时数输入只允许数字、限 3 位；非法/越界行内错误提示并禁用开始；步进按钮到边界禁用。
@@ -67,7 +70,7 @@
 
 - 不做账号体系与云同步。
 - 不做流媒体/在线曲库，也不内置任何音频资产，只提供合成音源与用户主动导入的本地音乐。
-- 不劫持系统媒体音量：增益一律走播放器级（`PlaybackController` 增益策略）。
+- 响度策略边界：自由煲机增益一律走播放器级；方案煲机响度经系统媒体音量表达（仅限播放会话内按阶段比例设置档位，含设置失败自动降级回播放器增益），不监听、不拦截用户手动音量以外的系统行为（`PlaybackController`、`playback/SystemVolumeLoudness.kt`）。
 - 不做社交、分享、排行榜等运营功能。
 
 ## 打包分发
