@@ -12,8 +12,8 @@
     <string name="title_settings">Settings</string>
     <string name="top_info_burn_title">Burn-in tips</string>
     <string name="top_info_burn_body">Keep the device plugged in and headphones connected; burn-in continues in the background.</string>
-    <string name="cd_keep_screen_on_enable">Turn on keep screen on</string>
-    <string name="cd_keep_screen_on_disable">Turn off keep screen on</string>
+    <string name="cd_theme_switch_to_dark">Switch to dark theme</string>
+    <string name="cd_theme_switch_to_light">Switch to light theme</string>
 
     <!-- 全局弹窗 / 行内提示 -->
     <string name="btn_cancel">Cancel</string>

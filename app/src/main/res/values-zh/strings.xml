@@ -11,8 +11,8 @@
     <string name="title_settings">设置</string>
     <string name="top_info_burn_title">煲机提示</string>
     <string name="top_info_burn_body">建议插电并保持耳机连接，煲机会在后台继续。</string>
-    <string name="cd_keep_screen_on_enable">开启屏幕常亮</string>
-    <string name="cd_keep_screen_on_disable">关闭屏幕常亮</string>
+    <string name="cd_theme_switch_to_dark">切换到深色模式</string>
+    <string name="cd_theme_switch_to_light">切换到浅色模式</string>
 
     <!-- 全局弹窗 / 行内提示 -->
     <string name="btn_cancel">取消</string>

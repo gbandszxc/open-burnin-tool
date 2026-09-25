@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.LightMode
@@ -45,6 +45,7 @@ import com.github.gbandszxc.obt.R
 import com.github.gbandszxc.obt.data.AppLanguage
 import com.github.gbandszxc.obt.data.BurnInSession
 import com.github.gbandszxc.obt.data.SessionStatus
+import com.github.gbandszxc.obt.data.ThemeMode
 import com.github.gbandszxc.obt.locale.AppLocale
 import com.github.gbandszxc.obt.playback.BurnInViewModel
 import com.github.gbandszxc.obt.playback.TrackImportResult
@@ -53,6 +54,7 @@ import com.github.gbandszxc.obt.ui.history.HistoryTab
 import com.github.gbandszxc.obt.ui.history.HistoryViewModel
 import com.github.gbandszxc.obt.ui.settings.SettingsTab
 import com.github.gbandszxc.obt.ui.settings.SettingsViewModel
+import com.github.gbandszxc.obt.ui.theme.resolveDarkTheme
 import com.github.gbandszxc.obt.ui.update.UpdateHost
 import com.github.gbandszxc.obt.ui.update.UpdateViewModel
 import kotlinx.coroutines.launch
@@ -76,7 +78,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 }
 
 /**
- * 应用主骨架：单 Activity + 顶栏（标题 + 煲机页屏幕常亮开关）+ 底部三 Tab。
+ * 应用主骨架：单 Activity + 顶栏（标题 + 煲机页深浅色主题切换）+ 底部三 Tab。
  *
  * - 播放状态来自 Application 级 [PlaybackController]（经 [BurnInViewModel]），
  *   后台播放中重新打开 App 直接恢复到进行中界面；
@@ -141,27 +143,31 @@ fun BurnInApp() {
                             title = stringResource(R.string.top_info_burn_title),
                             description = stringResource(R.string.top_info_burn_body),
                         )
-                        // 与设置页同一字段（SettingsRepository.keepScreenOn）；FLAG 由 MainActivity 协调器应用
+                        // 与设置页同一字段（SettingsRepository.themeMode）；按实际生效深浅在 LIGHT/DARK 间切换
+                        val isDarkTheme = resolveDarkTheme(appSettings.themeMode)
                         IconToggleButton(
-                            checked = appSettings.keepScreenOn,
-                            onCheckedChange = { checked ->
-                                scope.launch { settingsViewModel.setKeepScreenOn(checked) }
+                            checked = isDarkTheme,
+                            // 回调参数是切换后的新状态（内部 onCheckedChange(!checked)），
+                            // 语义易误用；这里不依赖参数，直接按当前生效深浅取反求目标模式。
+                            onCheckedChange = {
+                                val target = if (isDarkTheme) ThemeMode.LIGHT else ThemeMode.DARK
+                                scope.launch { settingsViewModel.setThemeMode(target) }
                             },
                         ) {
                             Icon(
-                                imageVector = if (appSettings.keepScreenOn) {
-                                    Icons.Filled.LightMode
-                                } else {
+                                imageVector = if (isDarkTheme) {
                                     Icons.Outlined.LightMode
+                                } else {
+                                    Icons.Outlined.DarkMode
                                 },
                                 contentDescription = stringResource(
-                                    if (appSettings.keepScreenOn) {
-                                        R.string.cd_keep_screen_on_disable
+                                    if (isDarkTheme) {
+                                        R.string.cd_theme_switch_to_light
                                     } else {
-                                        R.string.cd_keep_screen_on_enable
+                                        R.string.cd_theme_switch_to_dark
                                     },
                                 ),
-                                tint = if (appSettings.keepScreenOn) {
+                                tint = if (isDarkTheme) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
