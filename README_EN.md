@@ -5,7 +5,7 @@
 <h1 align="center">Burn-in Tool</h1>
 
 <p align="center">
-  An Android headphone burn-in tool · helps a new headphone's diaphragm settle faster with scientifically designed sound signals · fully offline except for update checks, no account, free and open source
+  An Android headphone burn-in tool. Play noise, frequency sweeps or your own music to help a new headphone's diaphragm settle faster. Fully offline except for checking for and downloading updates, which fetch public GitHub pages anonymously; no account required, free and open source.
 </p>
 
 <p align="center">
@@ -18,46 +18,20 @@
 
 ---
 
-## Features
+## Screenshots
 
-### Two burn-in routes
+| Plan burn-in | Free burn-in |
+| :---: | :---: |
+| <img src="docs/screenshots/home_plan_en.jpg" width="320" alt="Burn-in Tool UI · English · Plan burn-in"> | <img src="docs/screenshots/home_free_en.jpg" width="320" alt="Burn-in Tool UI · English · Free burn-in"> |
+| <img src="docs/screenshots/home_plan.jpg" width="320" alt="煲机助手界面 · 简体中文 · 方案煲机"> | <img src="docs/screenshots/home_free.jpg" width="320" alt="煲机助手界面 · 简体中文 · 自由煲机"> |
 
-- **Plan burn-in**: Standard 4-phase · 120 hours (white noise Gentle → pink noise Adapt → constant pink noise Steady → white/pink noise rotating every 30 minutes), or a custom 4-phase plan (total 24–240 hours, automatically split across the four phases at a 10/10/60/20 ratio). The four phases support drag-to-reorder, per-phase loudness adjustment (default ratios unchanged), and replacing the steady phase's constant pink noise with a single track or a playlist; the configuration applies to both standard and custom plans and is remembered, with phase loudness expressed through the system media volume.
-- **Free burn-in**: pick any sound source, with 2/8/16/24/48/72 hour presets or a custom 1–999 hours.
-- Start / pause / resume / stop; an unfinished plan session keeps a checkpoint, so you can resume from where you left off.
+<p align="center"><sub>Top row: English UI · Bottom row: Simplified Chinese UI. Left column: Plan burn-in · Right column: Free burn-in.</sub></p>
 
-### Sound sources
+## Features and manual
 
-- 7 synthesized sources: white noise, pink noise, 300 Hz sine wave, 150 Hz square wave, low-frequency sweep (100–200 Hz), wide sweep (100 Hz–10 kHz), mixed burn (white + pink noise).
-- Custom local music: import audio files through the system file picker, play them on a loop, and remove them whenever you like.
+Burn-in Tool offers two routes: plan burn-in and free burn-in. Plan burn-in walks a fixed four-phase sequence for a long session; free burn-in lets you choose the source and duration yourself and stop at any time. Both can play the built-in synthesized sources or music you import from your device. Progress is recorded as you go, and playback continues when the app is in the background.
 
-### Progress tracking
-
-- A summary of cumulative burn-in time and session count.
-- A paged history list (20 per page, loading more as you scroll) showing each session's plan, planned duration and actual progress.
-- Clear all history in one tap (with a confirmation dialog, unrecoverable).
-
-### Background and foreground playback
-
-- A foreground service keeps playback alive, and a persistent notification shows a remaining-time countdown with pause / resume / stop actions.
-- Audio focus handling: playback resumes automatically after a brief interruption such as an incoming call, and pauses immediately when the headphones are unplugged.
-- Progress is persisted every 60 seconds, so reopening the app after exiting restores the in-progress screen; a "Burn-in complete" system notification is posted when the planned duration is reached.
-
-### Screen and appearance
-
-- **Keep screen on**: the playback screen stays awake.
-- **Anti screen-off**: the screen stays awake while playing and drops to minimum brightness once the system screen-off timeout passes, so that background playback is not interrupted on devices that stop it when the screen turns off.
-- Light and dark themes: follow system / force light / force dark.
-- Android 12+ dynamic color, plus 6 preset palettes.
-- Simplified Chinese / English: detected from the system language by default, and switchable manually in Settings with immediate effect.
-
-### In-app updates
-
-- **Update source**: checks this repository's GitHub Releases (public pages fetched anonymously, with no account, token or configuration required) and matches an asset to the device ABI (`arm64-v8a` first, then `armeabi-v7a`), downloading release builds only.
-- **Automatic check**: a silent check runs once per process at app launch; when a newer version is found a dialog asks "Later / Download and install", while an up-to-date result or a failed check stays silent.
-- **Manual check**: Settings → About → "Check for updates"; every result is shown as a dialog dismissed with a confirm button — "already up to date", "a new version exists but no build matches this device's ABI", or "check failed"; a usable new version opens the download prompt instead.
-- **Download and install**: download progress is visible (progress bar, live speed, downloaded / total size); once finished the package is handed to the system installer and the user confirms the install — nothing is installed silently.
-- **Later options**: three choices — this time (current process only) / 7 days / this version — affecting automatic prompts only; manual checks are unaffected.
+For how each feature works, its settings and answers to common questions, see the user manual: [docs/MANUAL_EN.md](docs/MANUAL_EN.md). The Simplified Chinese edition is at [docs/MANUAL.md](docs/MANUAL.md).
 
 ## Tech stack
 
@@ -70,22 +44,22 @@
 
 Requirements: JDK 17 and the Android SDK (API 36).
 
-1. **JDK 17**: read from the `JAVA_HOME` environment variable by default; you can also point at it from the project root's `gradle.properties`:
+1. JDK 17 is read from the `JAVA_HOME` environment variable by default; you can also point at it from the project root's `gradle.properties`:
    ```properties
    org.gradle.java.home=path/to/jdk-17
    ```
-2. **Android SDK**: write it into the project root's `local.properties` (already covered by .gitignore):
+2. The Android SDK path goes in the project root's `local.properties` (already covered by .gitignore):
    ```properties
    sdk.dir=path/to/android-sdk
    ```
    Opening the project in Android Studio generates this file for you.
 3. Build:
    ```bash
-   ./gradlew assembleDebug        # Debug build (one APK each for armeabi-v7a / arm64-v8a)
+   ./gradlew assembleDebug        # Debug build (one APK each for armeabi-v7a and arm64-v8a)
    ./gradlew assembleRelease      # Release build (minify + resource shrinking, split by ABI)
    ./gradlew :app:testDebugUnitTest  # Unit tests
    ```
-4. **Release signing (optional)**: place `key.properties` and your keystore in the project root:
+4. Release signing is optional. Place `key.properties` and your keystore in the project root:
    ```properties
    storePassword=...
    keyPassword=...
@@ -94,11 +68,11 @@ Requirements: JDK 17 and the Android SDK (API 36).
    ```
    The build does not fail when `key.properties` is missing; the release is simply produced unsigned.
 
-> The repo lists Aliyun Maven mirrors ahead of the official ones in `settings.gradle.kts` to smooth over network flakiness in mainland China; when a mirror is unreachable it falls back to the official google / mavenCentral repositories.
+The repo lists Aliyun Maven mirrors ahead of the official ones in `settings.gradle.kts` to smooth over network flakiness in mainland China. The mirrors are only prepended for local builds; CI uses the official repositories directly. When a local mirror is unreachable it still falls back to the official google and mavenCentral repositories.
 
-## Build artifacts
+## Build artifacts and releases
 
-APKs are split by ABI (`armeabi-v7a` / `arm64-v8a`, no universal APK) and named:
+APKs are split by ABI into `armeabi-v7a` and `arm64-v8a` builds; there is no universal APK. Output files are named:
 
 ```
 open-burnin-tool-v<version>-<abi>-<debug|release>.apk
@@ -106,13 +80,20 @@ open-burnin-tool-v<version>-<abi>-<debug|release>.apk
 
 for example `open-burnin-tool-v1.5.0-arm64-v8a-release.apk` and `open-burnin-tool-v1.5.0-armeabi-v7a-debug.apk`.
 
-Releases are **published manually**; there is no automated release workflow:
+Releases are published manually; there is no automated release workflow:
 
 1. Bump `appVersionName` at the top of `app/build.gradle.kts` and the `versionCode` in `defaultConfig`;
 2. run `./gradlew assembleRelease` (artifacts land in `app/build/outputs/apk/release/`);
 3. create a `v<version>` GitHub Release named after `appVersionName` and upload both ABI release APKs as its assets.
 
-In-app updates download from those release assets, matched by ABI, so a release must satisfy: **the tag/release version equals `appVersionName`** (the app matches on `-v<version>-` in the asset name, and a mismatch is reported as "no package found for this device's ABI"), **the asset name stays `open-burnin-tool-v<version>-<abi>-release.apk`** (matching also depends on `-release` and the ABI segment), **`versionCode` is incremented** (otherwise the system installer refuses to overwrite the installed version), and the build is **signed with the same key as the installed app** (otherwise the installer reports a signature conflict). The existing CI `.github/workflows/build-apk.yml` (triggered by pushes to main) only uploads an Actions artifact and does not create a Release.
+In-app updates fetch the public GitHub Release pages anonymously, with no GitHub API and no token, and download from those release assets, matched by ABI. A release must therefore satisfy the following:
+
+- The release tag must equal `appVersionName`. The app matches on `-v<version>-` in the asset name; a mismatch finds nothing and reports "Version x.y.z is available, but no package matches this device's architecture."
+- The asset name must stay `open-burnin-tool-v<version>-<abi>-release.apk`. Matching also depends on the `-release` and ABI segments.
+- `versionCode` must be incremented, or the system installer refuses to overwrite the installed version.
+- Build with the same signing key as the installed app, or the installer reports a signature conflict.
+
+The existing CI workflow `.github/workflows/build-apk.yml` (triggered by pushes to main) only uploads an Actions artifact and does not create a Release.
 
 ## Project layout
 
@@ -120,10 +101,12 @@ In-app updates download from those release assets, matched by ABI, so a release 
 app/src/main/java/com/github/gbandszxc/obt/
 ├── data/       # Room persistence, repositories and settings
 ├── domain/     # Burn-in plans and progress logic
+├── locale/     # In-app language (process-wide locale state and Context wrapping, AppLocale.kt)
 ├── playback/   # Foreground service, synthesized-source player, playback control
-├── update/     # In-app updates (check / download / install)
-└── ui/         # Compose screens (Burn-in / History / Settings / theme; update dialogs in ui/update/)
-docs/           # Product definition (PRODUCT.md) and design system (DESIGN.md)
+├── update/     # In-app updates (check, download, install)
+└── ui/         # Compose screens (Burn-in, History, Settings, theme; update dialogs in ui/update/)
+docs/           # Product definition, design system and user manual (PRODUCT.md, DESIGN.md, MANUAL.md)
+docs/screenshots/  # README screenshots
 ```
 
 ## License
