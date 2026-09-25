@@ -552,9 +552,12 @@ private fun HoursStepperRow(
     }
 }
 
-/** 圆形步进小按钮（40dp），与输入框同高节奏；到边界禁用时由 M3 自动做置灰降级。 */
+/**
+ * 圆形步进小按钮（40dp），与输入框同高节奏；到边界禁用时由 M3 自动做置灰降级。
+ * internal 供响度编辑对话框复用（见 StageArrangementSection.kt LoudnessEditDialog）。
+ */
 @Composable
-private fun StepperIconButton(
+internal fun StepperIconButton(
     icon: ImageVector,
     description: String,
     onClick: () -> Unit,

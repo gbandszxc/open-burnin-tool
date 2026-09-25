@@ -17,6 +17,7 @@
 
     <!-- 全局弹窗 / 行内提示 -->
     <string name="btn_cancel">Cancel</string>
+    <string name="btn_close">Close</string>
     <string name="info_got_it">Got it</string>
     <string name="cd_info_action">Learn about “%1$s”</string>
     <string name="msg_import_success">Imported “%1$s”</string>
@@ -65,12 +66,16 @@
     <string name="cd_loudness_input">Enter loudness percentage</string>
     <string name="unit_percent">%</string>
     <string name="loudness_range_error">Enter a whole number between 1 and 100</string>
+    <string name="cd_step_decrease_loudness">Decrease by %1$d%%</string>
+    <string name="cd_step_increase_loudness">Increase by %1$d%%</string>
     <string name="btn_confirm">OK</string>
     <string name="loudness_reset_default">Reset to default</string>
     <string name="steady_mode_noise">Steady pink noise</string>
     <string name="steady_mode_music">Music</string>
     <string name="steady_empty_hint">Check or import at least one track, otherwise this phase plays steady pink noise</string>
     <string name="cd_steady_toggle_track">Check or uncheck “%1$s”</string>
+    <string name="cd_stage_edit_steady">Edit steady phase playback content</string>
+    <string name="steady_edit_dialog_title">Steady phase playback content</string>
 
     <!-- 煲机页 · 播放态 -->
     <string name="remaining_fmt">%1$s left</string>

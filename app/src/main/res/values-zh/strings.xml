@@ -16,6 +16,7 @@
 
     <!-- 全局弹窗 / 行内提示 -->
     <string name="btn_cancel">取消</string>
+    <string name="btn_close">关闭</string>
     <string name="info_got_it">知道了</string>
     <string name="cd_info_action">查看「%1$s」说明</string>
     <string name="msg_import_success">已导入「%1$s」</string>
@@ -64,12 +65,16 @@
     <string name="cd_loudness_input">输入响度百分比</string>
     <string name="unit_percent">%</string>
     <string name="loudness_range_error">请输入 1-100 的整数</string>
+    <string name="cd_step_decrease_loudness">减少 %1$d%%</string>
+    <string name="cd_step_increase_loudness">增加 %1$d%%</string>
     <string name="btn_confirm">确定</string>
     <string name="loudness_reset_default">恢复默认</string>
     <string name="steady_mode_noise">粉噪恒定</string>
     <string name="steady_mode_music">音乐</string>
     <string name="steady_empty_hint">勾选或导入至少一首曲目，否则该阶段按粉噪恒定播放</string>
     <string name="cd_steady_toggle_track">勾选或取消勾选「%1$s」</string>
+    <string name="cd_stage_edit_steady">编辑稳定阶段播放内容</string>
+    <string name="steady_edit_dialog_title">稳定阶段播放内容</string>
 
     <!-- 煲机页 · 播放态 -->
     <string name="remaining_fmt">剩余 %1$s</string>

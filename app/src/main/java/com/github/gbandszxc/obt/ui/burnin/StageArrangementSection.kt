@@ -3,13 +3,15 @@ package com.github.gbandszxc.obt.ui.burnin
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,10 +22,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.CheckCircle as CheckCircleOutlined
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
@@ -44,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,6 +88,12 @@ private val LOUDNESS_BADGE_SHAPE = RoundedCornerShape(8.dp)
 /** 拖拽手柄触控盒（48dp，M3 最小触达目标）。 */
 private val DRAG_HANDLE_TOUCH = 48.dp
 
+/** 稳定行编辑图标按钮触控尺寸（40dp，图标 20dp，满足 ≥40dp 触达目标）。 */
+private val STAGE_EDIT_BUTTON_SIZE = 40.dp
+
+/** 稳定播放内容弹窗里歌单清单的最大高度：超出纵向滚动，避免弹窗无限撑高。 */
+private val STEADY_DIALOG_LIST_MAX_HEIGHT = 320.dp
+
 /** 拖拽中行的抬升阴影（dp）与轻微缩放。 */
 private val DRAG_LIFT_SHADOW = 8.dp
 private const val DRAG_LIFT_SCALE = 1.02f
@@ -92,6 +106,9 @@ private const val STAGE_ALTERNATE = 3
 
 /** 响度百分比合法范围（域层比例 (0, 1] 的整数百分比表达）。 */
 private val LOUDNESS_PERCENT_RANGE = 1..100
+
+/** 响度步进量（±5，与输入框手动输入互为补充；到边界由按钮禁用兜底）。 */
+private const val LOUDNESS_STEP_PERCENT = 5
 
 /** 响度输入框最大位数（100 即 3 位，与 BurnInUiState.MAX_INPUT_DIGITS 同口径）。 */
 private const val LOUDNESS_INPUT_MAX_DIGITS = 3
@@ -108,12 +125,13 @@ private class RowDragState {
 /**
  * 阶段编排配置区（方案煲机两张方案卡下方）：作用于经典与自定义四阶段方案。
  *
- * - 四行阶段行按 [BurnInUiState.stageOrder] 渲染（编号 = 第 1–4 位），长按手柄拖动整行
- *   重排，松手经 [onStageOrderChange] 上抛；行尾响度徽标显示覆盖值（缺省该阶段默认比例），
- *   点击弹编辑对话框经 [onStageGainChange] 上抛（比例 / 清除覆盖）；
- * - 稳定阶段（stageId = 2）行下附音乐子区：粉噪恒定 / 音乐二档切换（[onSteadyMusicEnabledChange]）、
- *   有序歌单勾选（[onToggleSteadyTrack]，勾选顺序 = 播放顺序）与「导入本地音乐…」入口
- *   （[onImportSteadyTrack]，导入中复用 importing 态）；
+ * - 四行阶段行按 [BurnInUiState.stageOrder] 渲染（编号 = 第 1–4 位），四行形态统一，
+ *   长按手柄拖动整行重排，松手经 [onStageOrderChange] 上抛；行尾响度徽标显示覆盖值
+ *   （缺省该阶段默认比例），点击弹编辑对话框经 [onStageGainChange] 上抛（比例 / 清除覆盖）；
+ * - 稳定阶段（stageId = 2）行尾响度徽标旁附编辑图标按钮，点开「稳定阶段播放内容」弹窗：
+ *   粉噪恒定 / 音乐二档切换（[onSteadyMusicEnabledChange]）、有序歌单勾选
+ *   （[onToggleSteadyTrack]，勾选顺序 = 播放顺序）与「导入本地音乐…」入口
+ *   （[onImportSteadyTrack]，导入中复用 importing 态）；弹窗内变更全部即时生效；
  * - 删除曲目走既有移除确认（[TrackRemoveConfirmDialog]），确认后经 [onDeleteTrack] 上抛。
  *
  * 全部状态来自 [uiState]，事件全部经回调上抛；持久化与派生口径在 ViewModel/DataStore 侧收敛。
@@ -129,9 +147,10 @@ internal fun StageArrangementSection(
     onDeleteTrack: (LocalTrack) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // 纯交互状态留在 UI 层：正在编辑响度的阶段 id / 待确认删除的曲目
-    var editingGainStageId by remember { mutableStateOf<Int?>(null) }
-    var pendingDeleteTrack by remember { mutableStateOf<LocalTrack?>(null) }
+    // 纯交互状态留在 UI 层：正在编辑响度的阶段 id / 稳定播放内容弹窗开关。
+    // 用 rememberSaveable 持有，旋转重建后弹窗不丢（歌单内容本身由 DataStore 回流，天然保真）
+    var editingGainStageId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var steadyEditOpen by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -164,10 +183,7 @@ internal fun StageArrangementSection(
             uiState = uiState,
             onStageOrderChange = onStageOrderChange,
             onEditGain = { editingGainStageId = it },
-            onSteadyMusicEnabledChange = onSteadyMusicEnabledChange,
-            onToggleSteadyTrack = onToggleSteadyTrack,
-            onImportSteadyTrack = onImportSteadyTrack,
-            onDeleteRequest = { pendingDeleteTrack = it },
+            onEditSteady = { steadyEditOpen = true },
         )
     }
 
@@ -188,14 +204,14 @@ internal fun StageArrangementSection(
         )
     }
 
-    pendingDeleteTrack?.let { track ->
-        TrackRemoveConfirmDialog(
-            track = track,
-            onConfirm = {
-                pendingDeleteTrack = null
-                onDeleteTrack(track)
-            },
-            onDismiss = { pendingDeleteTrack = null },
+    if (steadyEditOpen) {
+        SteadyEditDialog(
+            uiState = uiState,
+            onSteadyMusicEnabledChange = onSteadyMusicEnabledChange,
+            onToggleSteadyTrack = onToggleSteadyTrack,
+            onImportSteadyTrack = onImportSteadyTrack,
+            onDeleteTrack = onDeleteTrack,
+            onDismiss = { steadyEditOpen = false },
         )
     }
 }
@@ -207,17 +223,14 @@ internal fun StageArrangementSection(
 /**
  * 四行阶段行（4 行定长 Column）：拖拽中维护本地 [RowDragState] 与展示顺序 [displayOrder]，
  * 拖拽期间被让位行按整行高平移做落点预览（ease-out 追随），被拖行位移直接跟手并视觉抬升；
- * 松手提交新顺序并做一次残余位移的收尾回位动画。
+ * 松手提交新顺序并做一次残余位移的收尾回位动画。四行形态统一，不再附行内子区。
  */
 @Composable
 private fun StageRows(
     uiState: BurnInUiState,
     onStageOrderChange: (List<Int>) -> Unit,
     onEditGain: (Int) -> Unit,
-    onSteadyMusicEnabledChange: (Boolean) -> Unit,
-    onToggleSteadyTrack: (Long) -> Unit,
-    onImportSteadyTrack: (Uri) -> Unit,
-    onDeleteRequest: (LocalTrack) -> Unit,
+    onEditSteady: () -> Unit,
 ) {
     val density = LocalDensity.current
     val rowHeightPx = with(density) { STAGE_ROW_HEIGHT.toPx() }
@@ -319,18 +332,9 @@ private fun StageRows(
                         rowHeightPx = rowHeightPx,
                         drag = drag,
                         onGainClick = { onEditGain(stageId) },
+                        onEditSteady = onEditSteady,
                         onDragFinished = ::finishDrag,
                     )
-                    // 稳定阶段音乐子区跟随该阶段行一起拖拽/让位（同组渲染）
-                    if (stageId == STAGE_STEADY) {
-                        SteadyMusicSection(
-                            uiState = uiState,
-                            onSteadyMusicEnabledChange = onSteadyMusicEnabledChange,
-                            onToggleSteadyTrack = onToggleSteadyTrack,
-                            onImportSteadyTrack = onImportSteadyTrack,
-                            onDeleteRequest = onDeleteRequest,
-                        )
-                    }
                 }
             }
             if (position < displayOrder.lastIndex) Spacer(Modifier.height(8.dp))
@@ -340,7 +344,8 @@ private fun StageRows(
 
 /**
  * 单行阶段行：拖拽手柄（长按拖动，手势只作用于手柄触控盒）+ 位次与阶段名 +
- * 音源摘要 + 行尾响度徽标（点击弹编辑对话框）。
+ * 音源摘要 + 行尾响度徽标（点击弹编辑对话框）；稳定阶段行在徽标旁再附编辑图标按钮
+ * （点开「稳定阶段播放内容」弹窗），其余行四行形态一致。
  */
 @Composable
 private fun StageRowContent(
@@ -351,6 +356,7 @@ private fun StageRowContent(
     rowHeightPx: Float,
     drag: RowDragState,
     onGainClick: () -> Unit,
+    onEditSteady: () -> Unit,
     onDragFinished: (Boolean) -> Unit,
 ) {
     val stageName = stageDisplayName(stageId)
@@ -439,25 +445,48 @@ private fun StageRowContent(
                 }
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         )
+        if (stageId == STAGE_STEADY) {
+            // 稳定行专属编辑入口：打开「稳定阶段播放内容」弹窗（模式切换 + 歌单管理收进弹窗）
+            IconButton(
+                onClick = onEditSteady,
+                modifier = Modifier.size(STAGE_EDIT_BUTTON_SIZE),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.cd_stage_edit_steady),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        } else {
+            // 非稳定行用等宽占位，保证四行行尾元素右缘对齐
+            Spacer(Modifier.width(STAGE_EDIT_BUTTON_SIZE))
+        }
     }
 }
 
 // ------------------------------------------------------------------
-// 稳定阶段音乐子区
+// 稳定阶段播放内容弹窗
 // ------------------------------------------------------------------
 
 /**
- * 稳定阶段音乐子区（只渲染在 stageId = 2 行下方）：粉噪恒定 / 音乐二档切换 +
- * 有序歌单清单（勾选顺序 = 播放顺序）+「导入本地音乐…」入口。
- * 选「音乐」才展开清单（animateContentSize）；空清单或全未勾选时显示回退粉噪的提示行。
+ * 稳定阶段播放内容弹窗（stageId = 2 行编辑入口，原行内子区整体收进弹窗）：
+ * 粉噪恒定 / 音乐二档 SegmentedButton（同 ModeSwitchRow 形态，`icon = {}` 去对钩），
+ * 选「音乐」展开有序歌单（勾选顺序 = 播放顺序 + 行删除 + 导入入口 + 空清单提示）。
+ *
+ * 即时生效口径：所有变更经既有回调直接上抛（DataStore 单一数据源回流 [BurnInUiState]），
+ * 弹窗不另设确认步骤，只有「关闭」动作。SAF launcher 与待删曲目确认留在弹窗组合内
+ * （前者依赖 Activity Result API，后者是纯交互状态）；待删曲目以 id 经 rememberSaveable
+ * 持有，旋转重建后确认态不丢（展示时再从曲目列表解析回 [LocalTrack]）。
  */
 @Composable
-private fun SteadyMusicSection(
+private fun SteadyEditDialog(
     uiState: BurnInUiState,
     onSteadyMusicEnabledChange: (Boolean) -> Unit,
     onToggleSteadyTrack: (Long) -> Unit,
     onImportSteadyTrack: (Uri) -> Unit,
-    onDeleteRequest: (LocalTrack) -> Unit,
+    onDeleteTrack: (LocalTrack) -> Unit,
+    onDismiss: () -> Unit,
 ) {
     // SAF launcher 留在 UI 层（依赖 Activity Result API），与自由煲机导入入口同一形态
     val importLauncher = rememberLauncherForActivityResult(
@@ -465,85 +494,123 @@ private fun SteadyMusicSection(
     ) { uri ->
         if (uri != null) onImportSteadyTrack(uri)
     }
-    Column(Modifier.padding(start = 6.dp, end = 2.dp, bottom = 6.dp)) {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            SegmentedButton(
-                selected = !uiState.steadyMusicEnabled,
-                onClick = { onSteadyMusicEnabledChange(false) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                icon = {},
-            ) {
-                Text(
-                    stringResource(R.string.steady_mode_noise),
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            SegmentedButton(
-                selected = uiState.steadyMusicEnabled,
-                onClick = { onSteadyMusicEnabledChange(true) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                icon = {},
-            ) {
-                Text(
-                    stringResource(R.string.steady_mode_music),
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Column(Modifier.animateContentSize()) {
-            if (!uiState.steadyMusicEnabled) return@Column
-            Spacer(Modifier.height(10.dp))
-            if (uiState.effectiveSteadyTrackIds.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.steady_empty_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-            }
-            uiState.tracks.forEach { track ->
-                SteadyTrackRow(
-                    track = track,
-                    order = uiState.steadyTrackIds.indexOf(track.id),
-                    onToggle = { onToggleSteadyTrack(track.id) },
-                    onDeleteRequest = { onDeleteRequest(track) },
-                )
-            }
-            Spacer(Modifier.height(2.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 44.dp)
-                    .clip(STAGE_ROW_SHAPE)
-                    .clickable(enabled = !uiState.importing) {
-                        importLauncher.launch(arrayOf("audio/*"))
+    // 待删除曲目 id（null = 无待确认）：存 id 而非对象，Long 可直接参与状态保存
+    var pendingDeleteTrackId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.steady_edit_dialog_title)) },
+        text = {
+            Column {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = !uiState.steadyMusicEnabled,
+                        onClick = { onSteadyMusicEnabledChange(false) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        icon = {},
+                    ) {
+                        Text(
+                            stringResource(R.string.steady_mode_noise),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
-                    .padding(horizontal = 4.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (uiState.importing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(R.string.item_importing),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.item_import_music),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    SegmentedButton(
+                        selected = uiState.steadyMusicEnabled,
+                        onClick = { onSteadyMusicEnabledChange(true) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        icon = {},
+                    ) {
+                        Text(
+                            stringResource(R.string.steady_mode_music),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (uiState.steadyMusicEnabled) {
+                    Spacer(Modifier.height(12.dp))
+                    // 歌单清单限高纵向滚动：曲目多时不撑破弹窗（同音效下拉 380dp 的克制口径）
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = STEADY_DIALOG_LIST_MAX_HEIGHT)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        if (uiState.effectiveSteadyTrackIds.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.steady_empty_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        uiState.tracks.forEach { track ->
+                            SteadyTrackRow(
+                                track = track,
+                                order = uiState.steadyTrackIds.indexOf(track.id),
+                                onToggle = { onToggleSteadyTrack(track.id) },
+                                onDeleteRequest = { pendingDeleteTrackId = track.id },
+                            )
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        SteadyImportRow(
+                            importing = uiState.importing,
+                            onImportClick = { importLauncher.launch(arrayOf("audio/*")) },
+                        )
+                    }
                 }
             }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_close)) }
+        },
+    )
+
+    pendingDeleteTrackId?.let { id ->
+        uiState.tracks.firstOrNull { it.id == id }?.let { track ->
+            TrackRemoveConfirmDialog(
+                track = track,
+                onConfirm = {
+                    pendingDeleteTrackId = null
+                    onDeleteTrack(track)
+                },
+                onDismiss = { pendingDeleteTrackId = null },
+            )
+        }
+    }
+}
+
+/** 弹窗内「导入本地音乐…」行：SAF 入口（`primary` 文字），导入中 16dp 进度圈 + 禁用重复导入。 */
+@Composable
+private fun SteadyImportRow(importing: Boolean, onImportClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clip(STAGE_ROW_SHAPE)
+            .clickable(enabled = !importing, onClick = onImportClick)
+            .padding(horizontal = 4.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (importing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = stringResource(R.string.item_importing),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.item_import_music),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }
@@ -619,8 +686,15 @@ private fun SteadyTrackRow(
 // ------------------------------------------------------------------
 
 /**
- * 响度编辑对话框：标题含阶段名；1–100 整数输入（非法行内报错并禁用确定），
- * 确定按百分比上抛覆盖值，「恢复默认」上抛 null 清除该阶段覆盖。
+ * 响度编辑对话框：标题含阶段名；与「自定义四阶段总时长」同款步进形态——40dp 圆形 −/+
+ * 按钮夹 160×48dp 数字输入框（后缀 %，见 [StepperIconButton]/[CompactNumberField]）。
+ *
+ * 步进口径与 ViewModel 的 stepPlanCustomHours 一致：草稿值非法时先回到最近的合法值
+ * （越界收敛到 1/100 边界、无数字回落打开时的生效值）再 ±[LOUDNESS_STEP_PERCENT]，
+ * 结果恒在 1–100 内，到边界对应按钮禁用；手动输入仍走 1–100 行内校验（非法报错并
+ * 禁用确定）。步进与输入都只改对话框内草稿，确定才经 [onConfirm] 上抛持久化，
+ * 「恢复默认」经 [onResetDefault] 清除该阶段覆盖。−/+ 步进做一次约 160ms 的数值淡入
+ * 反馈（系统动画关闭时直接跳变，手动输入不打断打字节奏不触发）。
  */
 @Composable
 private fun LoudnessEditDialog(
@@ -631,10 +705,35 @@ private fun LoudnessEditDialog(
     onResetDefault: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // 打开时刻的生效值作为初值；remember(stageId) 保证换阶段重开时重置输入
-    var input by remember(stageId) { mutableStateOf(initialPercent.toString()) }
+    // 打开时刻的生效值作为初值兼步进回落基准；rememberSaveable(stageId) 兼顾换阶段重开重置与旋转保持
+    var input by rememberSaveable(stageId) { mutableStateOf(initialPercent.toString()) }
     val parsed = input.trim().toIntOrNull()
     val isValid = parsed != null && parsed in LOUDNESS_PERCENT_RANGE
+    // 步进基准：合法值用现值、越界收敛到边界、无数字回落初值（与 stepPlanCustomHours 同口径）
+    val stepBase = parsed?.coerceIn(LOUDNESS_PERCENT_RANGE) ?: initialPercent
+    // 步进计数：仅 −/+ 触发淡入
+    var stepTick by remember { mutableStateOf(0) }
+    val numberAlpha = remember { Animatable(1f) }
+    val animationsEnabled = rememberAnimationsEnabled()
+    LaunchedEffect(stepTick) {
+        if (stepTick > 0) {
+            if (animationsEnabled) {
+                numberAlpha.snapTo(0.4f)
+                numberAlpha.animateTo(1f, tween(durationMillis = 160, easing = EaseOutCubic))
+            } else {
+                numberAlpha.snapTo(1f)
+            }
+        }
+    }
+
+    /** 步进：先落回最近合法值再 ±5，结果恒收敛回 1–100（写入草稿，确定才持久化）。 */
+    fun step(direction: Int) {
+        stepTick += 1
+        input = (stepBase + direction * LOUDNESS_STEP_PERCENT)
+            .coerceIn(LOUDNESS_PERCENT_RANGE)
+            .toString()
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.loudness_dialog_title_fmt, stageName)) },
@@ -646,14 +745,41 @@ private fun LoudnessEditDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
-                CompactNumberField(
-                    value = input,
-                    onValueChange = { input = it.filter(Char::isDigit).take(LOUDNESS_INPUT_MAX_DIGITS) },
-                    suffixText = stringResource(R.string.unit_percent),
-                    isError = !isValid,
-                    onClickLabel = stringResource(R.string.cd_loudness_input),
-                    modifier = Modifier.width(160.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    StepperIconButton(
+                        icon = Icons.Filled.Remove,
+                        description = stringResource(
+                            R.string.cd_step_decrease_loudness,
+                            LOUDNESS_STEP_PERCENT,
+                        ),
+                        enabled = stepBase > LOUDNESS_PERCENT_RANGE.first,
+                        onClick = { step(-1) },
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    CompactNumberField(
+                        value = input,
+                        onValueChange = { input = it.filter(Char::isDigit).take(LOUDNESS_INPUT_MAX_DIGITS) },
+                        suffixText = stringResource(R.string.unit_percent),
+                        isError = !isValid,
+                        onClickLabel = stringResource(R.string.cd_loudness_input),
+                        contentAlpha = numberAlpha.value,
+                        modifier = Modifier.width(160.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    StepperIconButton(
+                        icon = Icons.Filled.Add,
+                        description = stringResource(
+                            R.string.cd_step_increase_loudness,
+                            LOUDNESS_STEP_PERCENT,
+                        ),
+                        enabled = stepBase < LOUDNESS_PERCENT_RANGE.last,
+                        onClick = { step(1) },
+                    )
+                }
                 if (!isValid) {
                     Spacer(Modifier.height(8.dp))
                     Text(
