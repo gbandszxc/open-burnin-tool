@@ -66,11 +66,10 @@ jobs:
       - name: 打包 APK（armeabi-v7a + arm64-v8a）
         run: |
           chmod +x gradlew
-          # 临时加 --info 定位插件解析失败原因
           if [ "${{ inputs.build_type }}" = "debug" ]; then
-            ./gradlew assembleDebug --console=plain --info
+            ./gradlew assembleDebug --console=plain
           else
-            ./gradlew assembleRelease --console=plain --info
+            ./gradlew assembleRelease --console=plain
           fi
 
       - name: 列出产物

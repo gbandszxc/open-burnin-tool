@@ -1,9 +1,14 @@
+// 阿里云镜像仅用于本地缓解 maven central / google 的偶发 TLS 抖动；
+// GitHub Actions 的海外 runner 访问阿里云会拿到 HTTP 502 并直接中断依赖解析，须直连官方源。
+// pluginManagement 块先于脚本主体执行，环境判断需在块内各自声明
 pluginManagement {
+    val useAliyunMirror = System.getenv("GITHUB_ACTIONS") != "true"
     repositories {
-        // 阿里云镜像前置，缓解 maven central / google 的偶发 TLS 抖动
-        maven("https://maven.aliyun.com/repository/gradle-plugin")
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/central")
+        if (useAliyunMirror) {
+            maven("https://maven.aliyun.com/repository/gradle-plugin")
+            maven("https://maven.aliyun.com/repository/google")
+            maven("https://maven.aliyun.com/repository/central")
+        }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -13,8 +18,11 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/central")
+        val useAliyunMirror = System.getenv("GITHUB_ACTIONS") != "true"
+        if (useAliyunMirror) {
+            maven("https://maven.aliyun.com/repository/google")
+            maven("https://maven.aliyun.com/repository/central")
+        }
         google()
         mavenCentral()
     }
