@@ -36,6 +36,9 @@ sealed interface UpdateUiState {
     data class Available(val info: UpdateInfo, val showSnoozeOptions: Boolean = false) : UpdateUiState
 
     data class Downloading(val info: UpdateInfo, val progress: DownloadProgress) : UpdateUiState
+
+    /** 手动检查的结果弹窗（已是最新 / 本机无适配包 / 检查失败），确认后关闭。 */
+    data class Notice(val title: String, val message: String) : UpdateUiState
 }
 
 /** 一次性事件：瞬态提示与安装请求。 */
@@ -132,16 +135,20 @@ class UpdateViewModel(
             try {
                 when (val result = checker.check()) {
                     UpdateCheckResult.UpToDate -> {
-                        _state.value = UpdateUiState.Idle
-                        _events.send(UpdateEvent.Message(application.getString(R.string.update_latest_version)))
+                        // 手动检查的三类结果统一走 Notice 弹窗，避免一半 Toast 一半弹窗
+                        _state.value = UpdateUiState.Notice(
+                            title = application.getString(R.string.update_result_title),
+                            message = application.getString(R.string.update_latest_version),
+                        )
                     }
                     // 手动检查不受「稍后」策略影响：既然用户主动点了，就直接展示
                     is UpdateCheckResult.Available -> _state.value = UpdateUiState.Available(result.info)
                     is UpdateCheckResult.Unsupported -> {
-                        _state.value = UpdateUiState.Idle
-                        _events.send(
-                            UpdateEvent.Message(
-                                application.getString(R.string.update_no_matching_asset, result.versionName),
+                        _state.value = UpdateUiState.Notice(
+                            title = application.getString(R.string.update_result_title),
+                            message = application.getString(
+                                R.string.update_no_matching_asset,
+                                result.versionName,
                             ),
                         )
                     }
@@ -149,8 +156,10 @@ class UpdateViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = UpdateUiState.Idle
-                _events.send(UpdateEvent.Message(networkMessage(R.string.update_check_failed, e)))
+                _state.value = UpdateUiState.Notice(
+                    title = application.getString(R.string.update_result_title),
+                    message = networkMessage(R.string.update_check_failed, e),
+                )
             }
         }
     }

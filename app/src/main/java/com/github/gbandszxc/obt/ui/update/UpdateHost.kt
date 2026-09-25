@@ -37,7 +37,7 @@ import java.util.Locale
 /**
  * 更新流程的弹窗宿主：只负责按状态渲染弹窗与消费事件，不承载业务逻辑。
  *
- * 四种状态对应四类弹窗——检查中 / 发现新版本 / 稍后三档 / 下载进度；
+ * 五种状态对应五类弹窗——检查中 / 发现新版本 / 稍后三档 / 下载进度 / 检查结果通知；
  * 检查中与下载进度为不可取消（避免半途打断网络操作），其余可取消。
  * 所有用户可见文案走字符串资源，数值格式化在本文件内用私有函数完成。
  */
@@ -85,6 +85,7 @@ fun UpdateHost(viewModel: UpdateViewModel, modifier: Modifier = Modifier) {
                 )
             }
         is UpdateUiState.Downloading -> DownloadingDialog(info = current.info, progress = current.progress)
+        is UpdateUiState.Notice -> NoticeDialog(notice = current, onDismiss = viewModel::dismiss)
     }
 }
 
@@ -212,15 +213,17 @@ private fun DownloadingDialog(info: UpdateInfo, progress: DownloadProgress) {
                 )
                 Spacer(Modifier.height(12.dp))
                 if (progress.totalBytes > 0L) {
-                    // 总量已知 → 确定进度；比例夹到 0..1，避免异常值溢出
+                    // 总量已知 → 确定进度；比例夹到 0..1，避免异常值溢出。
+                    // 传空 lambda 覆盖 drawStopIndicator 的默认实现，去掉轨道末端的停止指示点。
                     LinearProgressIndicator(
                         progress = {
                             (progress.downloadedBytes.toFloat() / progress.totalBytes).coerceIn(0f, 1f)
                         },
                         modifier = Modifier.fillMaxWidth(),
+                        drawStopIndicator = {},
                     )
                 } else {
-                    // 总量未知 → 不确定态
+                    // 总量未知 → 不确定态（该重载本身不绘制停止指示点，无需额外参数）
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
                 Spacer(Modifier.height(8.dp))
@@ -248,6 +251,26 @@ private fun DownloadingDialog(info: UpdateInfo, progress: DownloadProgress) {
             }
         },
         confirmButton = {},
+    )
+}
+
+/** 检查结果通知：标题 + 可选正文 + 确认钮「知道了」，确认与取消都只是关闭弹窗。 */
+@Composable
+private fun NoticeDialog(notice: UpdateUiState.Notice, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = notice.title) },
+        // 正文为空则完全不渲染该区域，避免出现空白的 text 插槽
+        text = if (notice.message.isEmpty()) {
+            null
+        } else {
+            { Text(text = notice.message) }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.info_got_it))
+            }
+        },
     )
 }
 

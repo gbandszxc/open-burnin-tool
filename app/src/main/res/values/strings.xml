@@ -195,6 +195,7 @@
     <string name="update_checking_title">Checking for updates</string>
     <string name="update_checking_message">Fetching the latest release from GitHub…</string>
     <string name="update_latest_version">You\'re on the latest version</string>
+    <string name="update_result_title">Check for updates</string>
     <string name="update_check_failed">Failed to check for updates: %1$s</string>
     <string name="update_network_unavailable">Network unavailable</string>
     <string name="update_no_matching_asset">Version %1$s is available, but no package matches this device\'s architecture.</string>
