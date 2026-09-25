@@ -3,7 +3,7 @@
 # Release 签名：已在仓库 Settings → Secrets and variables → Actions 配置
 #   ANDROID_KEYSTORE_BASE64（keystore 文件 base64）、ANDROID_KEYSTORE_PASSWORD、
 #   ANDROID_KEY_ALIAS、ANDROID_KEY_PASSWORD；未配置时按未签名产出。
-name: 自动打包 APK（双架构）
+name: Build APK (Dual ABI)
 
 on:
   push:
@@ -63,9 +63,16 @@ jobs:
       - name: 列出产物
         run: ls -lh app/build/outputs/apk/release/
 
-      - name: 上传 APK
+      - name: 上传 APK（arm64-v8a）
         uses: actions/upload-artifact@v4
         with:
-          name: burnin-apk-release-run${{ github.run_number }}
-          path: app/build/outputs/apk/release/*.apk
+          name: burnin-apk-arm64-v8a-run${{ github.run_number }}
+          path: app/build/outputs/apk/release/*arm64-v8a*.apk
+          if-no-files-found: error
+
+      - name: 上传 APK（armeabi-v7a）
+        uses: actions/upload-artifact@v4
+        with:
+          name: burnin-apk-armeabi-v7a-run${{ github.run_number }}
+          path: app/build/outputs/apk/release/*armeabi-v7a*.apk
           if-no-files-found: error
