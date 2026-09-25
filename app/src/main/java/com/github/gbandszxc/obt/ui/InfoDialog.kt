@@ -15,7 +15,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.github.gbandszxc.obt.R
 
 /**
  * 行尾信息图标 + 说明弹窗：多行说明性段落的统一收纳出口。
@@ -39,7 +41,7 @@ fun InfoAction(
     ) {
         Icon(
             imageVector = Icons.Outlined.Info,
-            contentDescription = "查看「$title」说明",
+            contentDescription = stringResource(R.string.cd_info_action, title),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),
         )
@@ -52,9 +54,10 @@ fun InfoAction(
             text = { Text(text = description) },
             confirmButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text(text = "知道了")
+                    Text(text = stringResource(R.string.info_got_it))
                 }
             },
         )
     }
 }
+

@@ -87,8 +87,9 @@ class BurnPlansTest {
         val plan = BurnPlans.quick(8)
         val phase = plan.phases[0]
         assertEquals("quick_8h", plan.id)
-        assertEquals("快速煲机 8 小时", plan.name)
-        assertEquals("快速白噪", phase.name)
+        // name 是内部标识（与 planId 同款，非用户文案；展示名由 UI 按资源解析）
+        assertEquals("quick_8h", plan.name)
+        assertEquals("quick_WHITE_NOISE", phase.name)
         assertEquals(SoundSource.WHITE_NOISE, phase.soundSource)
         // 白噪默认增益 0.2 恰为原快捷方案固定音量 1/5，缺省调用行为不变
         assertEquals(1.0 / 5.0, phase.volumeRatio, 1e-9)
@@ -98,11 +99,11 @@ class BurnPlansTest {
     fun `快捷方案可指定音源且增益取该音源默认值`() {
         val plan = BurnPlans.quick(8, SoundSource.PINK_NOISE)
         assertEquals("quick_8h", plan.id)
-        assertEquals("快速煲机 8 小时", plan.name)
+        assertEquals("quick_8h", plan.name)
         assertEquals(8 * 3_600L, plan.totalSeconds)
         assertEquals(1, plan.phases.size)
         val phase = plan.phases[0]
-        assertEquals("快速粉红噪音", phase.name)
+        assertEquals("quick_PINK_NOISE", phase.name)
         assertEquals(SoundSource.PINK_NOISE, phase.soundSource)
         assertEquals(SoundSource.PINK_NOISE.defaultGainRatio, phase.volumeRatio, 1e-9)
         assertNull(phase.alternateWith)
@@ -144,7 +145,8 @@ class BurnPlansTest {
         for (hours in listOf(24, 48, 120, 240)) {
             val plan = BurnPlans.custom(hours)
             assertEquals("custom_${hours}h", plan.id)
-            assertEquals("自定义 $hours 小时", plan.name)
+            // name 是内部标识（与 planId 同款，非用户文案；展示名由 UI 按资源解析）
+            assertEquals("custom_${hours}h", plan.name)
         }
         // 同小时数构造等价：续播匹配（presetHours + plannedSeconds）依赖该确定性
         assertEquals(BurnPlans.custom(48), BurnPlans.custom(48))

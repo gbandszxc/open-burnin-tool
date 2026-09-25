@@ -31,36 +31,32 @@ import kotlinx.coroutines.launch
  * 煲机页的两条路线：
  * - [PLAN] 方案煲机：按指定方案（经典标准四阶段 / 自定义四阶段）依次走各音效阶段并记录进度；
  * - [FREE] 自由煲机：自选音效（内置 7 合成音源或本地音乐）与时长，单阶段任意煲。
+ *
+ * 展示名不进枚举：UI 按枚举项经资源解析（stringResource），随应用语言切换。
  */
-enum class BurnMode(val label: String) {
-    PLAN("方案煲机"),
-    FREE("自由煲机"),
+enum class BurnMode {
+    PLAN,
+    FREE,
 }
 
-/** 方案煲机模式下的两张方案卡。 */
-enum class PlanCard(val title: String) {
-    CLASSIC("经典标准 · 120 小时"),
-    CUSTOM("自定义四阶段"),
+/** 方案煲机模式下的两张方案卡（展示名由 UI 按枚举项经资源解析）。 */
+enum class PlanCard {
+    CLASSIC,
+    CUSTOM,
 }
 
 /**
  * 自由煲机的音效选择：内置 [SoundSource.catalog] 7 合成音源之一，或一条本地音乐曲目。
- * 统一以 [label] 供下拉框与状态展示使用；开始煲机时由 ViewModel 映射为对应方案参数。
+ * 开始煲机时由 ViewModel 映射为对应方案参数；展示名由 UI 解析（内置音源走
+ * [SoundSource.nameRes] 资源，本地音乐直接显示曲目名）。
  */
 sealed interface FreeSoundSelection {
 
-    /** 下拉框与播放态展示用文案。 */
-    val label: String
-
     /** 内置音源（如白噪音/粉红噪音）。 */
-    data class Builtin(val sound: SoundSource) : FreeSoundSelection {
-        override val label: String get() = sound.displayName
-    }
+    data class Builtin(val sound: SoundSource) : FreeSoundSelection
 
     /** 本地音乐曲目（播放走 LOCAL_TRACK 音源 + 曲目文件，见 [BurnPlans.quick] 的 localTrackId 参数）。 */
-    data class LocalMusic(val track: LocalTrack) : FreeSoundSelection {
-        override val label: String get() = track.displayName
-    }
+    data class LocalMusic(val track: LocalTrack) : FreeSoundSelection
 
     companion object {
 

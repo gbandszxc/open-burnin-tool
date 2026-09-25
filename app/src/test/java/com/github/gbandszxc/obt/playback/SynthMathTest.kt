@@ -186,18 +186,10 @@ class SynthMathTest {
     // ---- 音源目录 ----
 
     @Test
-    fun `音源目录覆盖7个合成音源加本地音源占位且中文名正确`() {
-        val expected = listOf(
-            0 to "正弦波",
-            1 to "粉红噪音",
-            2 to "方波",
-            3 to "白噪音",
-            4 to "低频扫频",
-            5 to "混合煲机",
-            6 to "宽频扫频",
-            7 to "本地音乐",
-        )
-        assertEquals(expected, com.github.gbandszxc.obt.domain.model.SoundSource.entries.map { it.legacySoundId to it.displayName })
+    fun `音源目录覆盖7个合成音源加本地音源占位`() {
+        // 展示名已资源化（nameRes，JVM 测试无法解析）：此处校验目录顺序与原版音源编号的对应关系
+        val expected = listOf(0, 1, 2, 3, 4, 5, 6, 7)
+        assertEquals(expected, com.github.gbandszxc.obt.domain.model.SoundSource.entries.map { it.legacySoundId })
     }
 
     @Test

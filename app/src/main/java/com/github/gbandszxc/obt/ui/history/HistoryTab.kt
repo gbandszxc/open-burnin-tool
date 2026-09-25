@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.History
@@ -35,16 +36,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.github.gbandszxc.obt.BurnInApplication
+import com.github.gbandszxc.obt.R
 import com.github.gbandszxc.obt.data.BurnInSession
 import com.github.gbandszxc.obt.data.SessionStatus
 import com.github.gbandszxc.obt.domain.model.BurnPlans
 import com.github.gbandszxc.obt.playback.formatBurnDuration
+import com.github.gbandszxc.obt.ui.HumanDurationPatterns
 import com.github.gbandszxc.obt.ui.formatDurationHuman
+import com.github.gbandszxc.obt.ui.planDisplayName
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -151,26 +156,29 @@ private fun SummaryRow(
     ) {
         Column {
             Text(
-                text = "累计煲机",
+                text = stringResource(R.string.history_total_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = formatDurationHuman(totalCompletedSeconds),
+                text = formatDurationHuman(
+                    totalCompletedSeconds,
+                    HumanDurationPatterns.fromResources(LocalContext.current),
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
         Column {
             Text(
-                text = "会话次数",
+                text = stringResource(R.string.history_sessions_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "$sessionCount 次",
+                text = stringResource(R.string.history_session_count_fmt, sessionCount),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -179,7 +187,7 @@ private fun SummaryRow(
         IconButton(onClick = onClearClick) {
             Icon(
                 imageVector = Icons.Outlined.DeleteSweep,
-                contentDescription = "清除全部煲机记录",
+                contentDescription = stringResource(R.string.cd_clear_history),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -194,16 +202,16 @@ private fun ClearConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "清除全部煲机记录？") },
-        text = { Text(text = "将删除全部煲机记录并重置累计统计，此操作不可恢复。") },
+        title = { Text(text = stringResource(R.string.history_clear_title)) },
+        text = { Text(text = stringResource(R.string.history_clear_body)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(text = "清除", color = MaterialTheme.colorScheme.error)
+                Text(text = stringResource(R.string.btn_clear), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "取消")
+                Text(text = stringResource(R.string.btn_cancel))
             }
         },
     )
@@ -233,13 +241,13 @@ private fun HistoryFooter(
                     strokeWidth = 2.dp,
                 )
                 Text(
-                    text = "正在加载…",
+                    text = stringResource(R.string.history_loading),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             endReached -> Text(
-                text = "共 $totalCount 条",
+                text = stringResource(R.string.history_total_count_fmt, totalCount),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -254,6 +262,8 @@ private fun SessionRow(session: BurnInSession) {
         SessionStatus.RUNNING, SessionStatus.PAUSED -> MaterialTheme.colorScheme.primary
         SessionStatus.COMPLETED, SessionStatus.ABANDONED -> MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val context = LocalContext.current
+    val crossDayTemplate = stringResource(R.string.duration_cross_day_fmt)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -265,7 +275,7 @@ private fun SessionRow(session: BurnInSession) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = formatSessionTime(session.startedAt),
+                text = formatSessionTime(session.startedAt, context),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -277,14 +287,20 @@ private fun SessionRow(session: BurnInSession) {
         }
         Spacer(Modifier.height(2.dp))
         Text(
-            text = "${BurnPlans.forPresetHours(session.presetHours).name}" +
-                " · 计划 ${formatBurnDuration(session.plannedSeconds)}",
+            text = stringResource(
+                R.string.history_plan_line_fmt,
+                planDisplayName(BurnPlans.forPresetHours(session.presetHours).id, context),
+                formatBurnDuration(session.plannedSeconds, crossDayTemplate),
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(2.dp))
         Text(
-            text = "已煲 ${formatBurnDuration(session.completedSeconds)}",
+            text = stringResource(
+                R.string.history_burned_fmt,
+                formatBurnDuration(session.completedSeconds, crossDayTemplate),
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -309,13 +325,13 @@ private fun EmptyHistory(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "还没有煲机记录",
+            text = stringResource(R.string.history_empty_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "去「煲机」页选择时长，开始第一次煲机",
+            text = stringResource(R.string.history_empty_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -323,14 +339,18 @@ private fun EmptyHistory(modifier: Modifier = Modifier) {
     }
 }
 
-private fun statusLabel(status: SessionStatus): String = when (status) {
-    SessionStatus.RUNNING -> "进行中"
-    SessionStatus.PAUSED -> "已暂停"
-    SessionStatus.COMPLETED -> "已完成"
-    SessionStatus.ABANDONED -> "已结束"
-}
+/** 会话状态展示名（UI 层按资源解析，随应用语言切换）。 */
+@Composable
+private fun statusLabel(status: SessionStatus): String = stringResource(
+    when (status) {
+        SessionStatus.RUNNING -> R.string.status_running
+        SessionStatus.PAUSED -> R.string.status_paused
+        SessionStatus.COMPLETED -> R.string.status_completed
+        SessionStatus.ABANDONED -> R.string.status_abandoned
+    },
+)
 
-private fun formatSessionTime(epochMillis: Long): String =
-    SESSION_TIME_FORMAT.format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()))
-
-private val SESSION_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("M月d日 HH:mm")
+/** 会话开始时间：pattern 随应用语言（资源 history_time_pattern，如 zh「M月d日 HH:mm」/ en「MMM d, HH:mm」）。 */
+private fun formatSessionTime(epochMillis: Long, context: Context): String =
+    DateTimeFormatter.ofPattern(context.getString(R.string.history_time_pattern))
+        .format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()))

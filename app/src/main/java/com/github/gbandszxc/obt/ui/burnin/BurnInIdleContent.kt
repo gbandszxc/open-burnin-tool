@@ -62,10 +62,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.github.gbandszxc.obt.R
 import com.github.gbandszxc.obt.data.LocalTrack
 import com.github.gbandszxc.obt.domain.model.BurnPlan
 import com.github.gbandszxc.obt.domain.model.BurnPlans
@@ -74,8 +77,10 @@ import com.github.gbandszxc.obt.playback.BurnMode
 import com.github.gbandszxc.obt.playback.FreeSoundSelection
 import com.github.gbandszxc.obt.playback.PlanCard
 import com.github.gbandszxc.obt.playback.formatBurnDuration
+import com.github.gbandszxc.obt.ui.HumanDurationPatterns
 import com.github.gbandszxc.obt.ui.InfoAction
 import com.github.gbandszxc.obt.ui.formatDurationHuman
+import com.github.gbandszxc.obt.ui.soundDisplayName
 
 /**
  * 颜色动效规格：ease-out 补间，系统动画关闭（缩放为 0）时直接跳变。
@@ -147,13 +152,16 @@ internal fun IdleContent(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "累计煲机",
+                text = stringResource(R.string.label_total_burned),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = formatDurationHuman(totalCompletedSeconds),
+                text = formatDurationHuman(
+                    totalCompletedSeconds,
+                    HumanDurationPatterns.fromResources(LocalContext.current),
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -204,7 +212,14 @@ private fun ModeSwitchRow(mode: BurnMode, onModeChange: (BurnMode) -> Unit) {
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
                 icon = {},
             ) {
-                Text(item.label)
+                Text(
+                    stringResource(
+                        when (item) {
+                            BurnMode.PLAN -> R.string.mode_plan
+                            BurnMode.FREE -> R.string.mode_free
+                        },
+                    ),
+                )
             }
         }
     }
@@ -227,6 +242,7 @@ private fun PlanModeContent(
     onStartPlan: (BurnPlan, Long?) -> Unit,
 ) {
     val classicSelected = uiState.planCard == PlanCard.CLASSIC
+    val crossDayTemplate = stringResource(R.string.duration_cross_day_fmt)
 
     PlanCard(
         selected = classicSelected,
@@ -234,18 +250,21 @@ private fun PlanModeContent(
         modifier = Modifier.fillMaxWidth(),
     ) {
         CardHeader(
-            title = PlanCard.CLASSIC.displayTitle,
-            subtitle = "舒筋 12h 白噪 → 活络 12h 粉噪 → 习武 72h 粉噪 → 打擂 24h 轮换",
+            title = planCardTitle(PlanCard.CLASSIC),
+            subtitle = stringResource(R.string.card_classic_subtitle),
             accent = classicSelected,
-            infoTitle = PlanCard.CLASSIC.displayTitle,
-            infoBody = CLASSIC_PHASES_INFO,
+            infoTitle = planCardTitle(PlanCard.CLASSIC),
+            infoBody = stringResource(R.string.info_classic_body),
         )
         Spacer(Modifier.height(14.dp))
         // 续播入口只对选中卡展示：resumable 查询跟随当前选中方案（planId）
         val resumable = uiState.resumableSession.takeIf { classicSelected }
         if (resumable != null) {
             Text(
-                text = "上次进度 ${formatBurnDuration(resumable.completedSeconds)}",
+                text = stringResource(
+                    R.string.last_progress_fmt,
+                    formatBurnDuration(resumable.completedSeconds, crossDayTemplate),
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -257,7 +276,7 @@ private fun PlanModeContent(
                         .weight(1f)
                         .height(44.dp),
                 ) {
-                    Text("继续", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.btn_resume), style = MaterialTheme.typography.labelLarge)
                 }
                 OutlinedButton(
                     onClick = { onStartPlan(BurnPlans.CLASSIC, null) },
@@ -265,7 +284,7 @@ private fun PlanModeContent(
                         .weight(1f)
                         .height(44.dp),
                 ) {
-                    Text("全新开始", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.btn_start_fresh), style = MaterialTheme.typography.labelLarge)
                 }
             }
         } else {
@@ -284,11 +303,11 @@ private fun PlanModeContent(
     ) {
         // 比例说明收进标题行尾 info 图标，点击可查看四阶段详细说明
         CardHeader(
-            title = PlanCard.CUSTOM.displayTitle,
+            title = planCardTitle(PlanCard.CUSTOM),
             subtitle = null,
             accent = customSelected,
-            infoTitle = PlanCard.CUSTOM.displayTitle,
-            infoBody = CUSTOM_PHASES_INFO,
+            infoTitle = planCardTitle(PlanCard.CUSTOM),
+            infoBody = stringResource(R.string.info_custom_body),
         )
         Spacer(Modifier.height(14.dp))
         // 步进区与校验错误行包在同一容器：错误行出现/消失时高度做一次克制的尺寸动效
@@ -303,8 +322,11 @@ private fun PlanModeContent(
             if (customHours == null) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "请输入 ${BurnInUiState.PLAN_CUSTOM_HOURS_RANGE.first}-" +
-                        "${BurnInUiState.PLAN_CUSTOM_HOURS_RANGE.last} 的整数小时",
+                    text = stringResource(
+                        R.string.error_plan_hours_range,
+                        BurnInUiState.PLAN_CUSTOM_HOURS_RANGE.first,
+                        BurnInUiState.PLAN_CUSTOM_HOURS_RANGE.last,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -318,32 +340,17 @@ private fun PlanModeContent(
     }
 }
 
-/** 两张方案卡的展示标题（UI 层收敛文案，与 [BurnPlans.CLASSIC] 的方案名保持一致口径）。 */
-private val PlanCard.displayTitle: String
-    get() = when (this) {
-        PlanCard.CLASSIC -> "标准四阶段 · 120 小时"
-        PlanCard.CUSTOM -> "自定义四阶段"
-    }
+/** 两张方案卡的展示标题（UI 层按资源解析，与 [BurnPlans.CLASSIC] 的方案口径一致）。 */
+@Composable
+private fun planCardTitle(card: PlanCard): String = stringResource(
+    when (card) {
+        PlanCard.CLASSIC -> R.string.card_classic_title
+        PlanCard.CUSTOM -> R.string.card_custom_title
+    },
+)
 
-/** 标准四阶段卡的 info 弹窗正文：各阶段名称 / 时长 / 音效 / 音量，与 [BurnPlans.CLASSIC_PHASES] 一致。 */
-private val CLASSIC_PHASES_INFO = """
-    全程 120 小时，按「先轻后重」分四个阶段：
-
-    舒筋 · 12h · 白噪音（20% 音量）
-    活络 · 12h · 粉红噪音（33% 音量）
-    习武 · 72h · 粉红噪音恒定（47% 音量）
-    打擂 · 24h · 白噪音与粉红噪音每 30 分钟轮换（60% 音量）
-""".trimIndent()
-
-/** 自定义四阶段卡的 info 弹窗正文：各阶段名称 / 占比 / 音效，与 [BurnPlans.custom] 等比缩放一致。 */
-private val CUSTOM_PHASES_INFO = """
-    总时长按 10 / 10 / 60 / 20 等比分为四个阶段：
-
-    舒筋 · 10% · 白噪音
-    活络 · 10% · 粉红噪音
-    习武 · 60% · 粉红噪音（恒定）
-    打擂 · 20% · 白噪音与粉红噪音每 30 分钟轮换
-""".trimIndent()
+/** 标准四阶段卡的 info 弹窗正文见 strings 的 info_classic_body（与 [BurnPlans.CLASSIC_PHASES] 一致）。 */
+/** 自定义四阶段卡的 info 弹窗正文见 strings 的 info_custom_body（与 [BurnPlans.custom] 等比缩放一致）。 */
 
 /**
  * 方案卡：整卡可点选中。选中态主色描边（2dp）+ tonal 底色强调，不使用对钩；
@@ -374,7 +381,7 @@ private fun PlanCard(
                 shape,
             )
             .border(width = if (selected) 2.dp else 1.dp, color = borderColor, shape = shape)
-            .clickable(onClickLabel = "选择方案") { onClick() }
+            .clickable(onClickLabel = stringResource(R.string.cd_select_plan)) { onClick() }
             .padding(16.dp),
         content = content,
     )
@@ -440,7 +447,7 @@ private fun CardStartButton(enabled: Boolean = true, onClick: () -> Unit) {
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(6.dp))
-        Text("开始煲机", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.btn_start_burn), style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -470,7 +477,7 @@ private fun HoursStepperRow(
     }
 
     Column(modifier = modifier) {
-        FieldLabel("总时长")
+        FieldLabel(stringResource(R.string.label_total_duration))
         Spacer(Modifier.height(12.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -479,7 +486,7 @@ private fun HoursStepperRow(
         ) {
             StepperIconButton(
                 icon = Icons.Filled.Remove,
-                description = "减少 ${BurnInUiState.PLAN_CUSTOM_HOURS_STEP} 小时",
+                description = stringResource(R.string.cd_step_decrease_hours, BurnInUiState.PLAN_CUSTOM_HOURS_STEP),
                 enabled = value == null || value > range.first,
                 onClick = {
                     stepTick += 1
@@ -491,13 +498,14 @@ private fun HoursStepperRow(
                 value = input,
                 onValueChange = onInputChange,
                 isError = isError,
+                suffixText = stringResource(R.string.unit_hours),
                 contentAlpha = numberAlpha.value,
                 modifier = Modifier.width(160.dp),
             )
             Spacer(Modifier.width(12.dp))
             StepperIconButton(
                 icon = Icons.Filled.Add,
-                description = "增加 ${BurnInUiState.PLAN_CUSTOM_HOURS_STEP} 小时",
+                description = stringResource(R.string.cd_step_increase_hours, BurnInUiState.PLAN_CUSTOM_HOURS_STEP),
                 enabled = value == null || value < range.last,
                 onClick = {
                     stepTick += 1
@@ -549,7 +557,7 @@ private fun FreeModeContent(
     }
 
     Column(Modifier.fillMaxWidth()) {
-        FieldLabel("煲机音效")
+        FieldLabel(stringResource(R.string.label_sound))
         Spacer(Modifier.height(8.dp))
         SoundSourceDropdown(
             selected = uiState.freeSound,
@@ -562,7 +570,7 @@ private fun FreeModeContent(
         )
 
         Spacer(Modifier.height(24.dp))
-        FieldLabel("煲机时长")
+        FieldLabel(stringResource(R.string.label_free_duration))
         Spacer(Modifier.height(8.dp))
         PresetHoursRow(
             uiState = uiState,
@@ -571,21 +579,24 @@ private fun FreeModeContent(
         Spacer(Modifier.height(16.dp))
         // 与方案煲机的总时长步进同一形态：标签在上，160×48 输入框在下（留空则沿用上方预设）
         Column(Modifier.animateContentSize()) {
-            FieldLabel("自定义小时")
+            FieldLabel(stringResource(R.string.label_custom_hours))
             Spacer(Modifier.height(8.dp))
             CompactNumberField(
                 value = uiState.freeCustomHoursInput,
                 onValueChange = onFreeCustomHoursChange,
-                suffixText = "小时",
-                hint = "选填",
+                suffixText = stringResource(R.string.unit_hours),
+                hint = stringResource(R.string.hint_optional),
                 isError = uiState.freeCustomInputError,
                 modifier = Modifier.width(160.dp),
             )
             if (uiState.freeCustomInputError) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "自定义时长需为 ${BurnInUiState.FREE_CUSTOM_HOURS_RANGE.first}-" +
-                        "${BurnInUiState.FREE_CUSTOM_HOURS_RANGE.last} 的整数小时",
+                    text = stringResource(
+                        R.string.error_free_hours_range,
+                        BurnInUiState.FREE_CUSTOM_HOURS_RANGE.first,
+                        BurnInUiState.FREE_CUSTOM_HOURS_RANGE.last,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -606,20 +617,19 @@ private fun FreeModeContent(
                 modifier = Modifier.size(24.dp),
             )
             Spacer(Modifier.width(8.dp))
-            Text("开始煲机", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.btn_start_burn), style = MaterialTheme.typography.titleMedium)
         }
     }
 
     pendingDeleteTrack?.let { track ->
         AlertDialog(
             onDismissRequest = { pendingDeleteTrack = null },
-            title = { Text("移除本地音乐？") },
+            title = { Text(stringResource(R.string.dialog_remove_track_title)) },
             // 只删应用私有目录（filesDir/burn_music/）下的副本与导入记录，源文件不受影响，
             // 文案必须如实说明，避免用户误以为原始音频文件会被删除
             text = {
                 Text(
-                    "将移除「${track.displayName}」在煲机助手中的导入记录与应用内副本，" +
-                        "不会删除你的原始音频文件。无法恢复的是导入记录。",
+                    stringResource(R.string.dialog_remove_track_body, track.displayName),
                 )
             },
             confirmButton = {
@@ -628,10 +638,10 @@ private fun FreeModeContent(
                         pendingDeleteTrack = null
                         onDeleteTrack(track)
                     },
-                ) { Text("移除") }
+                ) { Text(stringResource(R.string.btn_remove)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDeleteTrack = null }) { Text("取消") }
+                TextButton(onClick = { pendingDeleteTrack = null }) { Text(stringResource(R.string.btn_cancel)) }
             },
         )
     }
@@ -674,13 +684,14 @@ private fun FieldLabel(text: String) {
  * 紧凑数字输入框：48dp 细描边圆角行，数字与行尾单位小字（[suffixText]）整体居中；
  * 数字键盘、单行；空值时显示 [hint] 占位；点整行即可聚焦输入。
  * [contentAlpha] 供步进反馈做淡入；数字过滤与长度截断在 ViewModel 侧收敛，这里只做展示与上抛。
+ * [suffixText] 为行尾单位词（如「小时」），由调用点按当前语言传入（默认参数无法引用资源）。
  */
 @Composable
 private fun CompactNumberField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    suffixText: String = "小时",
+    suffixText: String,
     hint: String = "",
     isError: Boolean = false,
     contentAlpha: Float = 1f,
@@ -706,7 +717,7 @@ private fun CompactNumberField(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClickLabel = "输入小时数",
+                onClickLabel = stringResource(R.string.cd_input_hours),
             ) { focusRequester.requestFocus() }
             .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.Center,

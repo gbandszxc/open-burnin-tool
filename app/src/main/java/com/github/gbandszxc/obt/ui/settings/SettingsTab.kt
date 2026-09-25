@@ -37,9 +37,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.github.gbandszxc.obt.BuildConfig
+import com.github.gbandszxc.obt.R
+import com.github.gbandszxc.obt.data.AppLanguage
 import com.github.gbandszxc.obt.data.ThemeMode
 import com.github.gbandszxc.obt.ui.InfoAction
 import com.github.gbandszxc.obt.ui.theme.ThemePalettes
@@ -47,18 +50,17 @@ import com.github.gbandszxc.obt.ui.theme.ThemePalettes
 /** 项目 GitHub 仓库地址（开源后替换为正式仓库地址）。 */
 const val GITHUB_URL = "https://github.com/gbandszxc/open-burnin-tool"
 
-/** 「不息屏模式」说明全文：多行说明性段落，收进行尾 info 图标，点击弹窗查看。 */
-private const val DIM_KEEP_ALIVE_INFO =
-    "煲机播放中屏幕保持常亮，停止操作达到系统息屏时长后自动降至最低亮度，" +
-        "避免部分机型息屏后中断后台播放；暂停或结束即恢复正常。"
-
 /**
- * 设置 Tab：外观（主题模式/动态取色/主题配色）+ 播放（屏幕常亮/不息屏）+ 关于。
- * 状态由 [SettingsUiState] 单向驱动，全部变更经挂起回调写回 [com.github.gbandszxc.obt.data.SettingsRepository]。
+ * 设置 Tab：通用（语言）+ 外观（主题模式/动态取色/主题配色）+ 播放（屏幕常亮/不息屏）+ 关于。
+ * 状态由 [SettingsUiState] 单向驱动，全部变更经挂起回调写回 [com.github.gbandszxc.obt.data.SettingsRepository]；
+ * 语言切换由调用方（BurnInApp）负责更新进程内当前语言并重建界面。
  * 多行说明性段落一律收进行尾 ⓘ 图标弹窗（[InfoAction]），页面内只留单行功能性提示。
  *
  * ```
  * ┌──────────────────────────────┐
+ * │ 通用                          │
+ * │  语言                         │
+ * │  [跟随系统 | 中文 | English]   │ ← SegmentedButton（切换即生效并重建）
  * │ 外观                          │
  * │  主题模式                      │
  * │  [跟随系统 | 浅色 | 深色]       │ ← SegmentedButton
@@ -69,7 +71,7 @@ private const val DIM_KEEP_ALIVE_INFO =
  * │  屏幕常亮               ◉      │ ← 与煲机页顶栏同一字段
  * │  不息屏模式            ⓘ ○    │ ← 说明收进行尾 ⓘ，点击弹窗
  * │ 关于                          │
- * │  版本            1.2.0 [↗]   │ ← [↗] 跳转 GitHub
+ * │  版本            1.4.0 [↗]   │ ← [↗] 跳转 GitHub
  * └──────────────────────────────┘
  * ```
  */
@@ -81,6 +83,7 @@ fun SettingsTab(
     onPaletteChange: (String) -> Unit,
     onKeepScreenOnChange: (Boolean) -> Unit,
     onDimKeepAliveChange: (Boolean) -> Unit,
+    onLanguageChange: (AppLanguage) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -89,18 +92,28 @@ fun SettingsTab(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
     ) {
-        SectionHeader("外观")
+        SectionHeader(stringResource(R.string.settings_group_general))
 
         Text(
-            text = "主题模式",
+            text = stringResource(R.string.settings_language),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(10.dp))
+        LanguageRow(selected = state.language, onSelect = onLanguageChange)
+
+        SectionHeader(stringResource(R.string.settings_group_appearance))
+
+        Text(
+            text = stringResource(R.string.settings_theme_mode),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(10.dp))
         val themeModes = listOf(
-            ThemeMode.SYSTEM to "跟随系统",
-            ThemeMode.LIGHT to "浅色",
-            ThemeMode.DARK to "深色",
+            ThemeMode.SYSTEM to stringResource(R.string.theme_system),
+            ThemeMode.LIGHT to stringResource(R.string.theme_light),
+            ThemeMode.DARK to stringResource(R.string.theme_dark),
         )
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             themeModes.forEachIndexed { index, (mode, label) ->
@@ -118,20 +131,20 @@ fun SettingsTab(
 
         Spacer(Modifier.height(12.dp))
         SwitchRow(
-            title = "动态取色",
+            title = stringResource(R.string.settings_dynamic_color),
             checked = state.dynamicColor,
             onCheckedChange = onDynamicColorChange,
             enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
         )
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             // 低版本置灰原因属单行功能性提示，保留内联（超出部分不展开）
-            Caption("跟随壁纸取色需要 Android 12 及以上，当前系统不支持")
+            Caption(stringResource(R.string.caption_dynamic_color_unavailable))
             Spacer(Modifier.height(8.dp))
         }
 
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "主题配色",
+            text = stringResource(R.string.settings_palette),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -142,28 +155,57 @@ fun SettingsTab(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        SectionHeader("播放")
+        SectionHeader(stringResource(R.string.settings_group_playback))
         SwitchRow(
-            title = "屏幕常亮",
+            title = stringResource(R.string.settings_keep_screen_on),
             checked = state.keepScreenOn,
             onCheckedChange = onKeepScreenOnChange,
         )
         Spacer(Modifier.height(8.dp))
         SwitchRow(
-            title = "不息屏模式",
+            title = stringResource(R.string.settings_dim_keep_alive),
             checked = state.dimKeepAlive,
             onCheckedChange = onDimKeepAliveChange,
-            info = DIM_KEEP_ALIVE_INFO,
+            info = stringResource(R.string.info_dim_body),
         )
 
-        SectionHeader("关于")
+        SectionHeader(stringResource(R.string.settings_group_about))
         AboutRow(modifier = Modifier.fillMaxWidth())
 
         Spacer(Modifier.height(24.dp))
     }
 }
 
-/** 分组标题：外观 / 播放 / 关于。 */
+/**
+ * 语言切换行：跟随系统（自动检测）/ 中文 / English 三选一。
+ * 中文与 English 两个选项的文案固定用各自语言自称（语言列表的通行惯例），
+ * 仅「跟随系统」随当前应用语言翻译。
+ */
+@Composable
+private fun LanguageRow(
+    selected: AppLanguage,
+    onSelect: (AppLanguage) -> Unit,
+) {
+    val languages = listOf(
+        AppLanguage.SYSTEM to stringResource(R.string.language_system),
+        AppLanguage.CHINESE to "中文",
+        AppLanguage.ENGLISH to "English",
+    )
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        languages.forEachIndexed { index, (language, label) ->
+            SegmentedButton(
+                selected = selected == language,
+                onClick = { onSelect(language) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = languages.size),
+                icon = {},
+            ) {
+                Text(label)
+            }
+        }
+    }
+}
+
+/** 分组标题：通用 / 外观 / 播放 / 关于。 */
 @Composable
 private fun SectionHeader(title: String) {
     Spacer(Modifier.height(20.dp))
@@ -232,6 +274,7 @@ private fun PaletteRow(
     ) {
         ThemePalettes.forEach { palette ->
             val selected = palette.id == selectedId
+            val selectLabel = stringResource(R.string.palette_select_label, stringResource(palette.labelRes))
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -247,7 +290,7 @@ private fun PaletteRow(
                     .padding(4.dp)
                     .clip(CircleShape)
                     .background(palette.preview)
-                    .clickable(onClickLabel = "选择配色：${palette.label}") {
+                    .clickable(onClickLabel = selectLabel) {
                         onSelect(palette.id)
                     },
             )
@@ -277,7 +320,7 @@ private fun AboutRow(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "版本",
+            text = stringResource(R.string.settings_version),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
@@ -297,7 +340,7 @@ private fun AboutRow(modifier: Modifier = Modifier) {
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                contentDescription = "在浏览器打开 GitHub 仓库",
+                contentDescription = stringResource(R.string.cd_open_github),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )

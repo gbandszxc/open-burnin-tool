@@ -66,6 +66,7 @@ class SettingsRepository(private val appContext: Context) {
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val DIM_KEEP_ALIVE = booleanPreferencesKey("dim_keep_alive")
+        val LANGUAGE = stringPreferencesKey("language")
     }
 
     /** 底层偏好流：读文件抛 IOException（如首次损坏）时按空偏好处理，不让整条流中断；其余异常照抛。 */
@@ -99,6 +100,11 @@ class SettingsRepository(private val appContext: Context) {
         .map { it[Keys.DIM_KEEP_ALIVE] ?: false }
         .distinctUntilChanged()
 
+    /** 应用界面语言，缺省跟随系统自动检测。持久化与 [com.github.gbandszxc.obt.locale.AppLocale] 配合使用。 */
+    val language: Flow<AppLanguage> = preferences
+        .map { AppLanguage.fromRaw(it[Keys.LANGUAGE]) }
+        .distinctUntilChanged()
+
     /** 主题设置聚合流：三字段原子快照，供 Activity 首帧与持续收集使用。 */
     val themeSettings: Flow<ThemeSettings> = combine(
         themeMode,
@@ -114,6 +120,9 @@ class SettingsRepository(private val appContext: Context) {
      * 保证首帧即为用户保存的主题，不出现浅/深闪烁。
      */
     suspend fun snapshotOnce(): ThemeSettings = themeSettings.first()
+
+    /** 挂起读取一次应用语言：供 Application 启动时同步初始化 [com.github.gbandszxc.obt.locale.AppLocale]。 */
+    suspend fun languageOnce(): AppLanguage = language.first()
 
     /** 保存主题模式。 */
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -138,5 +147,10 @@ class SettingsRepository(private val appContext: Context) {
     /** 保存不息屏模式开关。 */
     suspend fun setDimKeepAlive(enabled: Boolean) {
         appContext.settingsDataStore.edit { it[Keys.DIM_KEEP_ALIVE] = enabled }
+    }
+
+    /** 保存应用界面语言。 */
+    suspend fun setLanguage(language: AppLanguage) {
+        appContext.settingsDataStore.edit { it[Keys.LANGUAGE] = language.name }
     }
 }

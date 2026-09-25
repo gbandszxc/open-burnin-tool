@@ -7,7 +7,8 @@ package com.github.gbandszxc.obt.domain.model
  * 每阶段固定音量（播放器级增益，不劫持系统媒体音量）。
  *
  * @property index 阶段序号，从 0 开始，随 [BurnPlan.phases] 顺序递增。
- * @property name 阶段名（舒筋/活络/习武/打擂）。
+ * @property name 阶段内部标识（舒筋/活络/习武/打擂等，仅日志/测试用）；
+ *   用户可见的阶段名由展示层按阶段序号经资源解析（见 ui/PlanDisplay.kt）。
  * @property durationSeconds 阶段时长（秒）。
  * @property soundSource 基准音源。
  * @property volumeRatio 音量比例，取值 [0.0, 1.0]，如标准四阶段为 1/5、1/3、7/15、3/5。
@@ -60,6 +61,8 @@ data class BurnPhase(
  */
 data class BurnPlan(
     val id: String,
+
+    /** 方案内部标识（仅日志/测试用）；用户可见的方案名由展示层按 [id] 经资源解析。 */
     val name: String,
     val phases: List<BurnPhase>,
 ) {

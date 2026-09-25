@@ -1,7 +1,9 @@
 package com.github.gbandszxc.obt.playback
 
+import com.github.gbandszxc.obt.domain.model.SoundSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -39,19 +41,23 @@ class PlaybackStateTest {
         assertEquals(PlaybackStatus.IDLE, idle.status)
         assertEquals(0L, idle.remainingSeconds)
         assertEquals(0.0, idle.progressFraction, 1e-9)
-        assertEquals("", idle.phaseName)
-        assertEquals("", idle.soundSourceName)
+        assertEquals(0, idle.phaseIndex)
+        assertNull(idle.soundSource)
+        assertNull(idle.localTrackName)
         assertFalse(idle.isPaused)
     }
 
     @Test
-    fun `当前音源中文名随状态透传`() {
+    fun `结构化播放身份随状态透传`() {
+        // 展示名不进状态：只携带阶段序号与音源枚举（含轮换结果），显示文案由展示层解析
         val state = PlaybackState(
             status = PlaybackStatus.PLAYING,
-            phaseName = "打擂",
-            soundSourceName = "粉红噪音",
+            planId = "classic_120h",
+            phaseIndex = 3,
+            soundSource = SoundSource.PINK_NOISE,
         )
-        assertEquals("粉红噪音", state.soundSourceName)
-        assertEquals("打擂", state.phaseName)
+        assertEquals("classic_120h", state.planId)
+        assertEquals(3, state.phaseIndex)
+        assertEquals(SoundSource.PINK_NOISE, state.soundSource)
     }
 }

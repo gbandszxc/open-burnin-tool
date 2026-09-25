@@ -1,9 +1,11 @@
 package com.github.gbandszxc.obt.ui.theme
 
+import androidx.annotation.StringRes
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import com.github.gbandszxc.obt.R
 
 // ---------------------------------------------------------------------------
 // 预置调色盘目录：6 套 Material 3 配色，每套浅/深两个完整 scheme。
@@ -14,10 +16,10 @@ import androidx.compose.ui.graphics.Color
 // - 未显式赋值的 roles 由 lightColorScheme()/darkColorScheme() 默认参数兜底（本文件已全部覆盖）。
 // ---------------------------------------------------------------------------
 
-/** 单套调色盘：[id] 持久化于设置，[label]/[preview] 供设置界面展示色板。 */
+/** 单套调色盘：[id] 持久化于设置，[labelRes]/[preview] 供设置界面展示色板（名称随应用语言解析）。 */
 data class ThemePalette(
     val id: String,
-    val label: String,
+    @StringRes val labelRes: Int,
     val light: ColorScheme,
     val dark: ColorScheme,
     val preview: Color,
@@ -31,42 +33,42 @@ val ThemePalettes: List<ThemePalette> by lazy {
     listOf(
         ThemePalette(
             id = "celadon",
-            label = "青瓷绿",
+            labelRes = R.string.palette_celadon,
             light = CeladonLight,
             dark = CeladonDark,
             preview = CeladonLight.primary,
         ),
         ThemePalette(
             id = "indigo",
-            label = "靛蓝",
+            labelRes = R.string.palette_indigo,
             light = IndigoLight,
             dark = IndigoDark,
             preview = IndigoLight.primary,
         ),
         ThemePalette(
             id = "amber",
-            label = "琥珀暖橙",
+            labelRes = R.string.palette_amber,
             light = AmberLight,
             dark = AmberDark,
             preview = AmberLight.primary,
         ),
         ThemePalette(
             id = "rose",
-            label = "玫瑰红",
+            labelRes = R.string.palette_rose,
             light = RoseLight,
             dark = RoseDark,
             preview = RoseLight.primary,
         ),
         ThemePalette(
             id = "forest",
-            label = "森林绿",
+            labelRes = R.string.palette_forest,
             light = ForestLight,
             dark = ForestDark,
             preview = ForestLight.primary,
         ),
         ThemePalette(
             id = "cerulean",
-            label = "天青蓝",
+            labelRes = R.string.palette_cerulean,
             light = CeruleanLight,
             dark = CeruleanDark,
             preview = CeruleanLight.primary,

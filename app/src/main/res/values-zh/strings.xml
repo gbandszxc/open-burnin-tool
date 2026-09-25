@@ -1,0 +1,167 @@
+<resources>
+    <!-- 简体中文：系统语言命中 zh（含 zh-CN/zh-SG 等）时使用本文件 -->
+    <string name="app_name">煲机助手</string>
+
+    <!-- 顶栏与底部导航 -->
+    <string name="tab_burn">煲机</string>
+    <string name="tab_history">记录</string>
+    <string name="tab_settings">设置</string>
+    <string name="title_burn">煲机助手</string>
+    <string name="title_history">煲机记录</string>
+    <string name="title_settings">设置</string>
+    <string name="top_info_burn_title">煲机提示</string>
+    <string name="top_info_burn_body">建议插电并保持耳机连接，煲机会在后台继续。</string>
+    <string name="cd_keep_screen_on_enable">开启屏幕常亮</string>
+    <string name="cd_keep_screen_on_disable">关闭屏幕常亮</string>
+
+    <!-- 全局弹窗 / 行内提示 -->
+    <string name="btn_cancel">取消</string>
+    <string name="info_got_it">知道了</string>
+    <string name="cd_info_action">查看「%1$s」说明</string>
+    <string name="msg_import_success">已导入「%1$s」</string>
+    <string name="msg_import_failure">导入失败，请重新选择音频文件</string>
+    <string name="msg_session_completed">本次煲机已完成</string>
+
+    <!-- 煲机页 · 未开始态 -->
+    <string name="label_total_burned">累计煲机</string>
+    <string name="mode_plan">方案煲机</string>
+    <string name="mode_free">自由煲机</string>
+    <string name="card_classic_title">标准四阶段 · 120 小时</string>
+    <string name="card_classic_subtitle">舒筋 12h 白噪 → 活络 12h 粉噪 → 习武 72h 粉噪 → 打擂 24h 轮换</string>
+    <string name="card_custom_title">自定义四阶段</string>
+    <string name="info_classic_body">全程 120 小时，按「先轻后重」分四个阶段：\n\n舒筋 · 12h · 白噪音（20%% 音量）\n活络 · 12h · 粉红噪音（33%% 音量）\n习武 · 72h · 粉红噪音恒定（47%% 音量）\n打擂 · 24h · 白噪音与粉红噪音每 30 分钟轮换（60%% 音量）</string>
+    <string name="info_custom_body">总时长按 10 / 10 / 60 / 20 等比分为四个阶段：\n\n舒筋 · 10%% · 白噪音\n活络 · 10%% · 粉红噪音\n习武 · 60%% · 粉红噪音（恒定）\n打擂 · 20%% · 白噪音与粉红噪音每 30 分钟轮换</string>
+    <string name="last_progress_fmt">上次进度 %1$s</string>
+    <string name="btn_resume">继续</string>
+    <string name="btn_start_fresh">全新开始</string>
+    <string name="btn_start_burn">开始煲机</string>
+    <string name="label_total_duration">总时长</string>
+    <string name="error_plan_hours_range">请输入 %1$d-%2$d 的整数小时</string>
+    <string name="cd_step_decrease_hours">减少 %1$d 小时</string>
+    <string name="cd_step_increase_hours">增加 %1$d 小时</string>
+    <string name="label_sound">煲机音效</string>
+    <string name="label_free_duration">煲机时长</string>
+    <string name="label_custom_hours">自定义小时</string>
+    <string name="hint_optional">选填</string>
+    <string name="unit_hours">小时</string>
+    <string name="error_free_hours_range">自定义时长需为 %1$d-%2$d 的整数小时</string>
+    <string name="cd_select_plan">选择方案</string>
+    <string name="cd_input_hours">输入小时数</string>
+    <string name="dialog_remove_track_title">移除本地音乐？</string>
+    <string name="dialog_remove_track_body">将移除「%1$s」在煲机助手中的导入记录与应用内副本，不会删除你的原始音频文件。无法恢复的是导入记录。</string>
+    <string name="btn_remove">移除</string>
+
+    <!-- 煲机页 · 播放态 -->
+    <string name="remaining_fmt">剩余 %1$s</string>
+    <string name="status_paused_fmt">已暂停 · %1$s</string>
+    <string name="status_playing_fmt">正在播放 · %1$s</string>
+    <string name="phase_line_fmt">%1$s · 阶段 %2$d/%3$d · %4$s</string>
+    <string name="btn_pause">暂停</string>
+    <string name="btn_stop">结束</string>
+    <string name="dialog_stop_title">结束本次煲机？</string>
+    <string name="dialog_stop_body">已煲 %1$s 会计入累计，本次会话将标记为已结束。</string>
+    <string name="btn_keep_burning">继续煲机</string>
+
+    <!-- 音效下拉 -->
+    <string name="group_builtin_sounds">内置音效</string>
+    <string name="group_local_music">本地音乐</string>
+    <string name="empty_local_music">暂无本地音乐，可从下方导入</string>
+    <string name="cd_remove_track">移除「%1$s」</string>
+    <string name="item_importing">正在导入…</string>
+    <string name="item_import_music">＋ 导入本地音乐…</string>
+    <string name="cd_expand_sound_list">展开音效列表</string>
+    <string name="cd_collapse_sound_list">收起音效列表</string>
+
+    <!-- 音源名（枚举 SoundSource 对应的展示名） -->
+    <string name="sound_sine_wave">正弦波</string>
+    <string name="sound_pink_noise">粉红噪音</string>
+    <string name="sound_square_wave">方波</string>
+    <string name="sound_white_noise">白噪音</string>
+    <string name="sound_low_freq_sweep">低频扫频</string>
+    <string name="sound_mixed_burn">混合煲机</string>
+    <string name="sound_wide_freq_sweep">宽频扫频</string>
+    <string name="sound_local_track">本地音乐</string>
+
+    <!-- 阶段名与方案名（按 planId / 阶段序号在展示层解析） -->
+    <string name="phase_warmup">舒筋</string>
+    <string name="phase_activation">活络</string>
+    <string name="phase_endurance">习武</string>
+    <string name="phase_rotation">打擂</string>
+    <string name="phase_quick_fmt">快速%1$s</string>
+    <string name="plan_classic_name">标准四阶段 · 120 小时</string>
+    <string name="plan_quick_fmt">快速煲机 %1$d 小时</string>
+    <string name="plan_quick_local_fmt">快速煲机 %1$d 小时 · %2$s</string>
+    <string name="plan_custom_fmt">自定义 %1$d 小时</string>
+
+    <!-- 记录页 -->
+    <string name="history_total_label">累计煲机</string>
+    <string name="history_sessions_label">会话次数</string>
+    <string name="history_session_count_fmt">%1$d 次</string>
+    <string name="cd_clear_history">清除全部煲机记录</string>
+    <string name="history_clear_title">清除全部煲机记录？</string>
+    <string name="history_clear_body">将删除全部煲机记录并重置累计统计，此操作不可恢复。</string>
+    <string name="btn_clear">清除</string>
+    <string name="history_loading">正在加载…</string>
+    <string name="history_total_count_fmt">共 %1$d 条</string>
+    <string name="history_plan_line_fmt">%1$s · 计划 %2$s</string>
+    <string name="history_burned_fmt">已煲 %1$s</string>
+    <string name="status_running">进行中</string>
+    <string name="status_paused">已暂停</string>
+    <string name="status_completed">已完成</string>
+    <string name="status_abandoned">已结束</string>
+    <string name="history_empty_title">还没有煲机记录</string>
+    <string name="history_empty_body">去「煲机」页选择时长，开始第一次煲机</string>
+    <string name="history_time_pattern">M月d日 HH:mm</string>
+
+    <!-- 前台服务通知（播放层） -->
+    <string name="notif_channel_name">煲机播放</string>
+    <string name="notif_channel_description">煲机进行时的常驻通知，含暂停/继续与结束控制</string>
+    <string name="notif_title_playing">煲机中 · %1$s</string>
+    <string name="notif_title_paused">已暂停 · %1$s</string>
+    <string name="notif_text_playing">阶段 %1$s ｜ 已煲 %2$s</string>
+    <string name="notif_text_paused">剩余 %1$s，点「继续」恢复</string>
+    <string name="notif_action_pause">暂停</string>
+    <string name="notif_action_resume">继续</string>
+    <string name="notif_action_stop">结束</string>
+
+    <!-- 煲机完成系统通知 -->
+    <string name="notif_complete_channel_name">煲机完成</string>
+    <string name="notif_complete_channel_description">煲机到达计划时长时的一条完成提示通知</string>
+    <string name="notif_complete_title">煲机完成</string>
+    <string name="notif_complete_text">本次煲机已达到计划时长，共 %1$s</string>
+
+    <!-- 时长文案模板（格式化函数按调用点语言传入） -->
+    <string name="duration_cross_day_fmt">%1$d天 %2$02d:%3$02d:%4$02d</string>
+    <string name="duration_days_hours_fmt">%1$d 天 %2$d 小时</string>
+    <string name="duration_hours_minutes_fmt">%1$d 小时 %2$d 分钟</string>
+    <string name="duration_hours_fmt">%1$d 小时</string>
+    <string name="duration_minutes_fmt">%1$d 分钟</string>
+    <string name="duration_under_minute">不足 1 分钟</string>
+
+    <!-- 设置页 -->
+    <string name="settings_group_general">通用</string>
+    <string name="settings_group_appearance">外观</string>
+    <string name="settings_group_playback">播放</string>
+    <string name="settings_group_about">关于</string>
+    <string name="settings_language">语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="settings_theme_mode">主题模式</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="settings_dynamic_color">动态取色</string>
+    <string name="caption_dynamic_color_unavailable">跟随壁纸取色需要 Android 12 及以上，当前系统不支持</string>
+    <string name="settings_palette">主题配色</string>
+    <string name="palette_select_label">选择配色：%1$s</string>
+    <string name="palette_celadon">青瓷绿</string>
+    <string name="palette_indigo">靛蓝</string>
+    <string name="palette_amber">琥珀暖橙</string>
+    <string name="palette_rose">玫瑰红</string>
+    <string name="palette_forest">森林绿</string>
+    <string name="palette_cerulean">天青蓝</string>
+    <string name="settings_keep_screen_on">屏幕常亮</string>
+    <string name="settings_dim_keep_alive">不息屏模式</string>
+    <string name="info_dim_body">煲机播放中屏幕保持常亮，停止操作达到系统息屏时长后自动降至最低亮度，避免部分机型息屏后中断后台播放；暂停或结束即恢复正常。</string>
+    <string name="settings_version">版本</string>
+    <string name="cd_open_github">在浏览器打开 GitHub 仓库</string>
+</resources>

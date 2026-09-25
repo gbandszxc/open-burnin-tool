@@ -59,13 +59,15 @@ object BurnPlans {
      * 快捷单阶段方案：全程同一音源、增益取该音源的默认增益，适合短时快速煲机。
      * 非原版行为，是本应用为常用时长（2/8/16/24/48/72 小时）提供的便捷预设。
      *
-     * [sound] 默认白噪——白噪默认增益恰为原版第一阶段（舒筋）的温和音量 1/5，
-     * 阶段名沿用既有「快速白噪」文案，因此缺省调用与历史行为完全一致。
+     * [sound] 默认白噪——白噪默认增益恰为原版第一阶段（舒筋）的温和音量 1/5。
      *
      * 本地音乐自定义音源：[localTrackId] 非空时本方案播放对应本地音轨
      * （Room local_tracks 表），此时 [sound] 被忽略、阶段音源强制为 [SoundSource.LOCAL_TRACK]，
-     * 阶段音量取其默认增益（7/15，本地音源阶段的占位音量）；阶段名/方案显示名用 [soundLabel]
-     * （如曲目名，空白时回退「本地音乐」），方案显示名追加曲目名便于历史辨识。
+     * 阶段音量取其默认增益（7/15，本地音源阶段的占位音量）；阶段名用 [soundLabel]
+     * （如曲目名，空白时回退 "local_track" 标识）。
+     *
+     * 注意：[BurnPlan.name] 与 [BurnPhase.name] 是日志/测试用的内部标识，
+     * 不是用户可见文案；方案/阶段/音源的显示名由 UI 与通知层按应用语言经资源解析。
      */
     fun quick(
         hours: Int,
@@ -78,28 +80,22 @@ object BurnPlans {
         val phase = if (localTrackId != null) {
             BurnPhase(
                 index = 0,
-                name = label ?: "本地音乐",
+                name = label ?: "local_track",
                 durationSeconds = hours * 3_600L,
                 soundSource = SoundSource.LOCAL_TRACK,
                 volumeRatio = SoundSource.LOCAL_TRACK.defaultGainRatio,
                 localTrackId = localTrackId,
             )
         } else {
-            val phaseName = if (sound == SoundSource.WHITE_NOISE) "快速白噪" else "快速${sound.displayName}"
             BurnPhase(
                 index = 0,
-                name = phaseName,
+                name = "quick_${sound.name}",
                 durationSeconds = hours * 3_600L,
                 soundSource = sound,
                 volumeRatio = sound.defaultGainRatio,
             )
         }
-        val planName = if (localTrackId != null) {
-            "快速煲机 $hours 小时 · ${label ?: "本地音乐"}"
-        } else {
-            "快速煲机 $hours 小时"
-        }
-        return BurnPlan(id = "quick_${hours}h", name = planName, phases = listOf(phase))
+        return BurnPlan(id = "quick_${hours}h", name = "quick_${hours}h", phases = listOf(phase))
     }
 
     /**
@@ -131,7 +127,7 @@ object BurnPlans {
                 alternateEverySeconds = period,
             )
         }
-        return BurnPlan(id = "custom_${hours}h", name = "自定义 $hours 小时", phases = phases)
+        return BurnPlan(id = "custom_${hours}h", name = "custom_${hours}h", phases = phases)
     }
 
     /** 按预设小时数取方案：120 小时走原版方案，快捷时长走快捷单阶段方案（默认白噪），其余走等比缩放。 */

@@ -429,22 +429,18 @@ class PlaybackController(
             // 完成态只是 finishCompleted() 过渡，随后立即回 IDLE，通知层无需渲染
             EngineStatus.COMPLETED -> PlaybackStatus.PLAYING
         }
-        // 本地音乐阶段显示曲目展示名（切阶段时已随 createPlayerFor 解析并缓存）；
-        // 极端时序（如解析尚未完成即发布）回退「本地音乐」占位，不显示内置音源文案
-        val soundSourceName = if (position.phase.localTrackId != null) {
-            activeLocalTrackName ?: "本地音乐"
-        } else {
-            position.soundSource.displayName
-        }
+        // 本地音乐阶段携带曲目展示名（切阶段时已随 createPlayerFor 解析并缓存），
+        // 极端时序（如解析尚未完成即发布）为 null，展示层回退「本地音乐」占位
+        val localTrack = position.phase.localTrackId != null
         _state.value = PlaybackState(
             status = status,
             sessionId = sessionId,
             planId = plan.id,
-            planName = plan.name,
             plannedSeconds = eng.plannedSeconds,
             completedSeconds = eng.completedSeconds,
-            phaseName = position.phase.name,
-            soundSourceName = soundSourceName,
+            phaseIndex = position.phase.index,
+            soundSource = if (localTrack) SoundSource.LOCAL_TRACK else position.soundSource,
+            localTrackName = if (localTrack) activeLocalTrackName else null,
         )
     }
 
@@ -626,15 +622,15 @@ class PlaybackController(
         }
     }
 
-    /** 当前播放身份的可读描述（日志用）。 */
+    /** 当前播放身份的可读描述（日志用，内部标识非用户文案）。 */
     private fun describeActiveSource(): String = when (val trackId = activeLocalTrackId) {
-        null -> activeSource?.displayName ?: "无"
+        null -> activeSource?.name ?: "无"
         else -> "本地音轨#$trackId"
     }
 
-    /** 目标播放身份的可读描述（日志用）。 */
+    /** 目标播放身份的可读描述（日志用，内部标识非用户文案）。 */
     private fun describeTarget(source: SoundSource, localTrackId: Long?): String =
-        if (localTrackId != null) "本地音轨#$localTrackId" else source.displayName
+        if (localTrackId != null) "本地音轨#$localTrackId" else source.name
 
     /**
      * 煲机完成系统通知：标题「煲机完成」，内容「本次煲机已达到计划时长，共 X」
@@ -654,7 +650,12 @@ class PlaybackController(
             val notification = NotificationCompat.Builder(context, BurnInService.COMPLETE_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(context.getString(R.string.notif_complete_title))
-                .setContentText(context.getString(R.string.notif_complete_text, formatBurnDuration(completedSeconds)))
+                .setContentText(
+                    context.getString(
+                        R.string.notif_complete_text,
+                        formatBurnDuration(completedSeconds, context.getString(R.string.duration_cross_day_fmt)),
+                    ),
+                )
                 .setAutoCancel(true)
                 .setContentIntent(
                     PendingIntent.getActivity(

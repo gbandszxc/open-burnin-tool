@@ -1,20 +1,168 @@
 <resources>
-    <string name="app_name">煲机助手</string>
+    <!-- 默认资源 = 英文：未命中 values-zh 的语言（含英文与其他语言）一律回退本文件，
+         即「自动检测」语义（中文系统 → values-zh，其余 → 本文件）。 -->
+    <string name="app_name">Burn-in Assistant</string>
+
+    <!-- 顶栏与底部导航 -->
+    <string name="tab_burn">Burn-in</string>
+    <string name="tab_history">History</string>
+    <string name="tab_settings">Settings</string>
+    <string name="title_burn">Burn-in Assistant</string>
+    <string name="title_history">Burn-in History</string>
+    <string name="title_settings">Settings</string>
+    <string name="top_info_burn_title">Burn-in tips</string>
+    <string name="top_info_burn_body">Keep the device plugged in and headphones connected; burn-in continues in the background.</string>
+    <string name="cd_keep_screen_on_enable">Turn on keep screen on</string>
+    <string name="cd_keep_screen_on_disable">Turn off keep screen on</string>
+
+    <!-- 全局弹窗 / 行内提示 -->
+    <string name="btn_cancel">Cancel</string>
+    <string name="info_got_it">Got it</string>
+    <string name="cd_info_action">Learn about “%1$s”</string>
+    <string name="msg_import_success">Imported “%1$s”</string>
+    <string name="msg_import_failure">Import failed, please pick the audio file again</string>
+    <string name="msg_session_completed">Burn-in session completed</string>
+
+    <!-- 煲机页 · 未开始态 -->
+    <string name="label_total_burned">Total burn-in</string>
+    <string name="mode_plan">Plan</string>
+    <string name="mode_free">Free</string>
+    <string name="card_classic_title">Standard 4-phase · 120 h</string>
+    <string name="card_classic_subtitle">12 h white → 12 h pink → 72 h pink steady → 24 h rotation</string>
+    <string name="card_custom_title">Custom 4-phase</string>
+    <string name="info_classic_body">120 hours in total, split into four phases from gentle to strong:\n\nWarm-up · 12 h · White noise (20%% volume)\nActivation · 12 h · Pink noise (33%% volume)\nEndurance · 72 h · Pink noise steady (47%% volume)\nRotation · 24 h · White/pink noise every 30 min (60%% volume)</string>
+    <string name="info_custom_body">Total duration is split into four phases at a fixed 10 / 10 / 60 / 20 ratio:\n\nWarm-up · 10%% · White noise\nActivation · 10%% · Pink noise\nEndurance · 60%% · Pink noise (steady)\nRotation · 20%% · White/pink noise every 30 min</string>
+    <string name="last_progress_fmt">Last progress %1$s</string>
+    <string name="btn_resume">Resume</string>
+    <string name="btn_start_fresh">Start fresh</string>
+    <string name="btn_start_burn">Start burn-in</string>
+    <string name="label_total_duration">Total duration</string>
+    <string name="error_plan_hours_range">Enter a whole number of hours between %1$d and %2$d</string>
+    <string name="cd_step_decrease_hours">Decrease by %1$d hours</string>
+    <string name="cd_step_increase_hours">Increase by %1$d hours</string>
+    <string name="label_sound">Burn-in sound</string>
+    <string name="label_free_duration">Burn-in duration</string>
+    <string name="label_custom_hours">Custom hours</string>
+    <string name="hint_optional">Optional</string>
+    <string name="unit_hours">hours</string>
+    <string name="error_free_hours_range">Custom duration must be a whole number of hours between %1$d and %2$d</string>
+    <string name="cd_select_plan">Select plan</string>
+    <string name="cd_input_hours">Enter hours</string>
+    <string name="dialog_remove_track_title">Remove this local track?</string>
+    <string name="dialog_remove_track_body">The import record of “%1$s” and the in-app copy will be removed from Burn-in Assistant; your original audio file will not be deleted. Only the import record is unrecoverable.</string>
+    <string name="btn_remove">Remove</string>
+
+    <!-- 煲机页 · 播放态 -->
+    <string name="remaining_fmt">%1$s left</string>
+    <string name="status_paused_fmt">Paused · %1$s</string>
+    <string name="status_playing_fmt">Playing · %1$s</string>
+    <string name="phase_line_fmt">%1$s · Phase %2$d/%3$d · %4$s</string>
+    <string name="btn_pause">Pause</string>
+    <string name="btn_stop">Stop</string>
+    <string name="dialog_stop_title">End this burn-in session?</string>
+    <string name="dialog_stop_body">%1$s burned will be counted toward your total, and this session will be marked as ended.</string>
+    <string name="btn_keep_burning">Keep burning</string>
+
+    <!-- 音效下拉 -->
+    <string name="group_builtin_sounds">Built-in sounds</string>
+    <string name="group_local_music">Local music</string>
+    <string name="empty_local_music">No local music yet; import below</string>
+    <string name="cd_remove_track">Remove “%1$s”</string>
+    <string name="item_importing">Importing…</string>
+    <string name="item_import_music">+ Import local music…</string>
+    <string name="cd_expand_sound_list">Expand sound list</string>
+    <string name="cd_collapse_sound_list">Collapse sound list</string>
+
+    <!-- 音源名（枚举 SoundSource 对应的展示名） -->
+    <string name="sound_sine_wave">Sine wave</string>
+    <string name="sound_pink_noise">Pink noise</string>
+    <string name="sound_square_wave">Square wave</string>
+    <string name="sound_white_noise">White noise</string>
+    <string name="sound_low_freq_sweep">Low-freq sweep</string>
+    <string name="sound_mixed_burn">Mixed burn</string>
+    <string name="sound_wide_freq_sweep">Wide sweep</string>
+    <string name="sound_local_track">Local music</string>
+
+    <!-- 阶段名与方案名（按 planId / 阶段序号在展示层解析） -->
+    <string name="phase_warmup">Warm-up</string>
+    <string name="phase_activation">Activation</string>
+    <string name="phase_endurance">Endurance</string>
+    <string name="phase_rotation">Rotation</string>
+    <string name="phase_quick_fmt">Quick %1$s</string>
+    <string name="plan_classic_name">Standard 4-phase · 120 h</string>
+    <string name="plan_quick_fmt">Quick burn-in · %1$d h</string>
+    <string name="plan_quick_local_fmt">Quick burn-in · %1$d h · %2$s</string>
+    <string name="plan_custom_fmt">Custom · %1$d h</string>
+
+    <!-- 记录页 -->
+    <string name="history_total_label">Total burn-in</string>
+    <string name="history_sessions_label">Sessions</string>
+    <string name="history_session_count_fmt">%1$d sessions</string>
+    <string name="cd_clear_history">Clear all burn-in history</string>
+    <string name="history_clear_title">Clear all burn-in history?</string>
+    <string name="history_clear_body">All burn-in history and cumulative stats will be deleted. This cannot be undone.</string>
+    <string name="btn_clear">Clear</string>
+    <string name="history_loading">Loading…</string>
+    <string name="history_total_count_fmt">%1$d in total</string>
+    <string name="history_plan_line_fmt">%1$s · Planned %2$s</string>
+    <string name="history_burned_fmt">Burned %1$s</string>
+    <string name="status_running">In progress</string>
+    <string name="status_paused">Paused</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_abandoned">Ended</string>
+    <string name="history_empty_title">No burn-in history yet</string>
+    <string name="history_empty_body">Go to the Burn-in tab, pick a duration and start your first session</string>
+    <string name="history_time_pattern">MMM d, HH:mm</string>
 
     <!-- 前台服务通知（播放层） -->
-    <string name="notif_channel_name">煲机播放</string>
-    <string name="notif_channel_description">煲机进行时的常驻通知，含暂停/继续与结束控制</string>
-    <string name="notif_title_playing">煲机中 · %1$s</string>
-    <string name="notif_title_paused">已暂停 · %1$s</string>
-    <string name="notif_text_playing">阶段 %1$s ｜ 已煲 %2$s</string>
-    <string name="notif_text_paused">剩余 %1$s，点「继续」恢复</string>
-    <string name="notif_action_pause">暂停</string>
-    <string name="notif_action_resume">继续</string>
-    <string name="notif_action_stop">结束</string>
+    <string name="notif_channel_name">Burn-in playback</string>
+    <string name="notif_channel_description">Ongoing notification while burn-in is playing, with pause/resume and stop controls</string>
+    <string name="notif_title_playing">Burn-in · %1$s</string>
+    <string name="notif_title_paused">Paused · %1$s</string>
+    <string name="notif_text_playing">Phase %1$s · %2$s burned</string>
+    <string name="notif_text_paused">%1$s left, tap Resume</string>
+    <string name="notif_action_pause">Pause</string>
+    <string name="notif_action_resume">Resume</string>
+    <string name="notif_action_stop">Stop</string>
 
     <!-- 煲机完成系统通知 -->
-    <string name="notif_complete_channel_name">煲机完成</string>
-    <string name="notif_complete_channel_description">煲机到达计划时长时的一条完成提示通知</string>
-    <string name="notif_complete_title">煲机完成</string>
-    <string name="notif_complete_text">本次煲机已达到计划时长，共 %1$s</string>
+    <string name="notif_complete_channel_name">Burn-in complete</string>
+    <string name="notif_complete_channel_description">A completion notice when a burn-in session reaches its planned duration</string>
+    <string name="notif_complete_title">Burn-in complete</string>
+    <string name="notif_complete_text">Planned duration reached, %1$s in total</string>
+
+    <!-- 时长文案模板（格式化函数按调用点语言传入） -->
+    <string name="duration_cross_day_fmt">%1$dd %2$02d:%3$02d:%4$02d</string>
+    <string name="duration_days_hours_fmt">%1$d d %2$d hr</string>
+    <string name="duration_hours_minutes_fmt">%1$d hr %2$d min</string>
+    <string name="duration_hours_fmt">%1$d hr</string>
+    <string name="duration_minutes_fmt">%1$d min</string>
+    <string name="duration_under_minute">Under 1 min</string>
+
+    <!-- 设置页 -->
+    <string name="settings_group_general">General</string>
+    <string name="settings_group_appearance">Appearance</string>
+    <string name="settings_group_playback">Playback</string>
+    <string name="settings_group_about">About</string>
+    <string name="settings_language">Language</string>
+    <string name="language_system">Auto</string>
+    <string name="settings_theme_mode">Theme mode</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Dynamic color</string>
+    <string name="caption_dynamic_color_unavailable">Dynamic color needs Android 12 or later; not supported on this system</string>
+    <string name="settings_palette">Theme palette</string>
+    <string name="palette_select_label">Select palette: %1$s</string>
+    <string name="palette_celadon">Celadon green</string>
+    <string name="palette_indigo">Indigo</string>
+    <string name="palette_amber">Warm amber</string>
+    <string name="palette_rose">Rose</string>
+    <string name="palette_forest">Forest green</string>
+    <string name="palette_cerulean">Cerulean</string>
+    <string name="settings_keep_screen_on">Keep screen on</string>
+    <string name="settings_dim_keep_alive">Anti screen-off</string>
+    <string name="info_dim_body">While burn-in is playing the screen stays on, dropping to minimum brightness after the system screen-off timeout of inactivity, so background playback is not interrupted on devices that stop it when the screen turns off. Pausing or stopping restores normal behavior.</string>
+    <string name="settings_version">Version</string>
+    <string name="cd_open_github">Open the GitHub repository in a browser</string>
 </resources>

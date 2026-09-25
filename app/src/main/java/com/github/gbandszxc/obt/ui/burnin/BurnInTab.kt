@@ -1,5 +1,6 @@
 package com.github.gbandszxc.obt.ui.burnin
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,11 +32,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.gbandszxc.obt.R
 import com.github.gbandszxc.obt.data.LocalTrack
-import com.github.gbandszxc.obt.domain.logic.BurnSequencer
 import com.github.gbandszxc.obt.domain.model.BurnPlan
 import com.github.gbandszxc.obt.domain.model.BurnPlans
 import com.github.gbandszxc.obt.playback.BurnInUiState
@@ -45,6 +48,9 @@ import com.github.gbandszxc.obt.playback.PlaybackState
 import com.github.gbandszxc.obt.playback.PlaybackStatus
 import com.github.gbandszxc.obt.playback.PlanCard
 import com.github.gbandszxc.obt.playback.formatBurnDuration
+import com.github.gbandszxc.obt.ui.phaseDisplayName
+import com.github.gbandszxc.obt.ui.planDisplayName
+import com.github.gbandszxc.obt.ui.soundDisplayName
 import java.util.concurrent.TimeUnit
 
 /**
@@ -115,11 +121,17 @@ private fun rebuildPlan(planId: String): BurnPlan? {
 }
 
 /** 播放态第二行文案：多阶段方案显示「方案名 · 阶段 x/y · 阶段名」，单阶段只显示方案名。 */
-private fun phaseLineOf(state: PlaybackState): String {
-    val plan = rebuildPlan(state.planId) ?: return state.planName
-    if (plan.phases.size <= 1) return state.planName
-    val position = BurnSequencer(plan).positionAt(state.completedSeconds)
-    return "${state.planName} · 阶段 ${position.phaseIndex + 1}/${plan.phases.size} · ${position.phase.name}"
+private fun phaseLineOf(state: PlaybackState, context: Context): String {
+    val plan = rebuildPlan(state.planId)
+    val planName = planDisplayName(state, context)
+    if (plan == null || plan.phases.size <= 1) return planName
+    return context.getString(
+        R.string.phase_line_fmt,
+        planName,
+        state.phaseIndex + 1,
+        plan.phases.size,
+        phaseDisplayName(state, context),
+    )
 }
 
 /**
@@ -145,6 +157,10 @@ private fun ActiveContent(
     // 手动暂停后点「结束」（本就暂停、未打标记）取消时不能误恢复
     var pausedByStopConfirm by remember { mutableStateOf(false) }
     val paused = state.isPaused
+    val crossDayTemplate = stringResource(R.string.duration_cross_day_fmt)
+    val context = LocalContext.current
+    val soundName = state.soundSource?.let { soundDisplayName(it, context) }
+        ?: stringResource(R.string.sound_local_track)
 
     Column(
         modifier = modifier
@@ -165,7 +181,7 @@ private fun ActiveContent(
                 // 跨天字符串更长，降字号保证单行放得下（tnum 保证逐秒跳动不位移）
                 val crossDay = state.completedSeconds >= TimeUnit.DAYS.toSeconds(1)
                 Text(
-                    text = formatBurnDuration(state.completedSeconds),
+                    text = formatBurnDuration(state.completedSeconds, crossDayTemplate),
                     style = if (crossDay) {
                         MaterialTheme.typography.displaySmall.copy(fontSize = 30.sp)
                     } else {
@@ -177,7 +193,7 @@ private fun ActiveContent(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "剩余 ${formatBurnDuration(state.remainingSeconds)}",
+                    text = stringResource(R.string.remaining_fmt, formatBurnDuration(state.remainingSeconds, crossDayTemplate)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -190,7 +206,10 @@ private fun ActiveContent(
 
         // 状态行展示实际播放音源（打擂轮换、自由选择、本地音乐均如实反映）
         Text(
-            text = if (paused) "已暂停 · ${state.soundSourceName}" else "正在播放 · ${state.soundSourceName}",
+            text = stringResource(
+                if (paused) R.string.status_paused_fmt else R.string.status_playing_fmt,
+                soundName,
+            ),
             style = MaterialTheme.typography.labelLarge,
             color = if (paused) {
                 MaterialTheme.colorScheme.onSurfaceVariant
@@ -201,7 +220,7 @@ private fun ActiveContent(
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = phaseLineOf(state),
+            text = phaseLineOf(state, context),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -214,13 +233,13 @@ private fun ActiveContent(
                 Button(onClick = onResume, modifier = Modifier.height(52.dp)) {
                     Icon24(Icons.Filled.PlayArrow)
                     Spacer(Modifier.width(8.dp))
-                    Text("继续", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.btn_resume), style = MaterialTheme.typography.titleMedium)
                 }
             } else {
                 Button(onClick = onPause, modifier = Modifier.height(52.dp)) {
                     Icon24(Icons.Filled.Pause)
                     Spacer(Modifier.width(8.dp))
-                    Text("暂停", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.btn_pause), style = MaterialTheme.typography.titleMedium)
                 }
             }
             OutlinedButton(
@@ -240,7 +259,7 @@ private fun ActiveContent(
             ) {
                 Icon24(Icons.Filled.Stop)
                 Spacer(Modifier.width(8.dp))
-                Text("结束", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.btn_stop), style = MaterialTheme.typography.titleMedium)
             }
         }
 
@@ -260,10 +279,15 @@ private fun ActiveContent(
     if (showStopConfirm) {
         AlertDialog(
             onDismissRequest = closeStopConfirm,
-            title = { Text("结束本次煲机？") },
+            title = { Text(stringResource(R.string.dialog_stop_title)) },
             text = {
                 // 使用打开瞬间定格的秒数，与确认后落库值一致（不用实时 state，避免漂移）
-                Text("已煲 ${formatBurnDuration(stopConfirmSeconds)} 会计入累计，本次会话将标记为已结束。")
+                Text(
+                    stringResource(
+                        R.string.dialog_stop_body,
+                        formatBurnDuration(stopConfirmSeconds, crossDayTemplate),
+                    ),
+                )
             },
             confirmButton = {
                 TextButton(
@@ -273,10 +297,10 @@ private fun ActiveContent(
                         pausedByStopConfirm = false
                         onStop()
                     },
-                ) { Text("结束") }
+                ) { Text(stringResource(R.string.btn_stop)) }
             },
             dismissButton = {
-                TextButton(onClick = closeStopConfirm) { Text("继续煲机") }
+                TextButton(onClick = closeStopConfirm) { Text(stringResource(R.string.btn_keep_burning)) }
             },
         )
     }

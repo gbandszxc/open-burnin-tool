@@ -113,12 +113,13 @@ class BurnInUiStateTest {
     }
 
     @Test
-    fun `音效选择文案取音源中文名或曲目展示名`() {
+    fun `音效选择携带音源枚举或曲目`() {
+        // 展示名不进选择状态：内置音源走枚举（UI 按资源解析），本地音乐直接携带曲目
         val builtin = FreeSoundSelection.Builtin(SoundSource.PINK_NOISE)
-        assertEquals(SoundSource.PINK_NOISE.displayName, builtin.label)
+        assertEquals(SoundSource.PINK_NOISE, builtin.sound)
 
         val local = FreeSoundSelection.LocalMusic(track(id = 5L, name = "我的一曲.flac"))
-        assertEquals("我的一曲.flac", local.label)
+        assertEquals("我的一曲.flac", local.track.displayName)
     }
 
     @Test

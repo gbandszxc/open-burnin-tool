@@ -1,6 +1,6 @@
 # PRODUCT.md — 产品定义（煲机助手）
 
-> 依据当前 v1.4.0（versionCode 3，minSdk 26 / targetSdk 36）实际实现固化。功能或交互行为变更时须同步更新本文件。
+> 依据当前 v1.5.0（versionCode 4，minSdk 26 / targetSdk 36）实际实现固化。功能或交互行为变更时须同步更新本文件。
 
 ## 产品定位
 
@@ -49,6 +49,13 @@
 - 6 套预置调色盘（默认「青瓷绿」），详见 docs/DESIGN.md。
 - 视觉规格详见 docs/DESIGN.md。
 
+### 多语言（`data/AppLanguage.kt`、`locale/AppLocale.kt`、`res/values-zh/`）
+
+- 支持简体中文与英文；默认「跟随系统」自动检测（中文系统 → 中文，其余 → 英文）。
+- 设置页「通用 → 语言」三选一：跟随系统 / 中文 / English；切换即时生效（更新进程内语言并重建界面），后台播放中的通知同步换语言。
+- 应用内切换覆盖系统语言且重启后保持（DataStore 持久化）；Activity 与前台服务在 `attachBaseContext` 统一经 `AppLocale.wrap` 应用语言。
+- 文案单一来源：全部用户可见文案入 `res/values/`（英文默认）与 `res/values-zh/`（中文）；方案/阶段/音源展示名由播放状态的结构化身份（planId/阶段序号/音源枚举）在展示层按语言解析（`ui/PlanDisplay.kt`），域层 `BurnPlan.name`/`BurnPhase.name` 仅为内部标识。
+
 ## 交互要点
 
 - **可续播**：标准/自定义方案有未完成会话时，方案卡显示「上次进度」，提供「继续」（从已完成秒数续播）与「全新开始」（旧检查点作废）双入口（`ui/burnin/BurnInIdleContent.kt`、`playback/PlaybackController.start`）。同一方案至多保留一个可续检查点。
@@ -66,4 +73,4 @@
 ## 打包分发
 
 - APK 按 ABI 分包：`armeabi-v7a` 与 `arm64-v8a` 两档，不产 universal 包（`app/build.gradle.kts` 的 `splits.abi`）。
-- 产物命名：`煲机助手-v<版本号>-<abi>-<debug|release>.apk`（如 `煲机助手-v1.4.0-arm64-v8a-release.apk`），版本号由 `appVersionName` 单一来源驱动（`androidComponents.onVariants` 注入）。
+- 产物命名：`煲机助手-v<版本号>-<abi>-<debug|release>.apk`（如 `煲机助手-v1.5.0-arm64-v8a-release.apk`），版本号由 `appVersionName` 单一来源驱动（`androidComponents.onVariants` 注入）。

@@ -7,7 +7,7 @@
 1. **克制中性表面 + 单一强调色**：界面以中性 surface 层级承载，强调只用 `colorScheme.primary` 一 种颜色（选中描边/竖条/主按钮/进度弧/状态行），无第二强调色。全文 M3 color scheme 角色取色，禁止硬编码颜色（各页面通用，参见 `ui/burnin/BurnInIdleContent.kt` PlanCard/CardHeader）。
 2. **对比度正文 ≥ 4.5:1**：预置调色盘正文类角色（onSurface/onSurfaceVariant/on*Container vs 对应底色）按 WCAG ≥ 4.5:1 校验（`ui/theme/Color.kt` 文件头注释）。
 3. **动效 ease-out 且尊重系统动画关闭**：所有补间统一 650ms `EaseOutCubic`；系统「动画时长缩放 = 0」时一律 `snap()` 直接跳变（`ui/burnin/ProgressRing.kt` `rememberAnimationsEnabled`/`easeOutSpec`，`ui/burnin/BurnInIdleContent.kt` `easeOutColorSpec`）。动效克制：步进数值淡入 160ms（`HoursStepperRow`）、校验错误行出现/消失 `animateContentSize()`（`PlanModeContent`）。
-4. **说明性段落收进 InfoAction 弹窗**：多行说明一律收进行尾 ⓘ 图标弹窗，页面内只留单行功能性提示与校验错误（`ui/InfoDialog.kt`；用法见 `ui/BurnInApp.kt` 顶栏「煲机提示」、`ui/burnin/BurnInIdleContent.kt` `CUSTOM_PHASES_INFO`、`ui/settings/SettingsTab.kt` `DIM_KEEP_ALIVE_INFO`）。
+4. **说明性段落收进 InfoAction 弹窗**：多行说明一律收进行尾 ⓘ 图标弹窗，页面内只留单行功能性提示与校验错误（`ui/InfoDialog.kt`；用法见 `ui/BurnInApp.kt` 顶栏「煲机提示」、说明正文见 strings 资源（`info_custom_body`、`info_dim_body`、`info_classic_body`）。。
 5. **选中态一律无对钩**：SegmentedButton 显式 `icon = {}`；卡片/色卡选中用主色描边 + tonal 底，不用对钩标记。
 
 ## 色彩
@@ -34,7 +34,7 @@
 
 ## 组件规范
 
-- **SegmentedButton（无对钩）**：`icon = {}` 显式去掉默认对钩，选中态仅 tonal 底 + 描边强调。用于双路线切换与自由煲机时长预设（`ui/burnin/BurnInIdleContent.kt` `ModeSwitchRow`/`PresetHoursRow`）、主题模式三选一（`ui/settings/SettingsTab.kt`）。
+- **SegmentedButton（无对钩）**：`icon = {}` 显式去掉默认对钩，选中态仅 tonal 底 + 描边强调。用于双路线切换与自由煲机时长预设（`ui/burnin/BurnInIdleContent.kt` `ModeSwitchRow`/`PresetHoursRow`）、主题模式与语言三选一（`ui/settings/SettingsTab.kt` `LanguageRow`）。
 - **方案卡（PlanCard）**：整卡可点；圆角 16dp；未选中 1dp `outlineVariant` 描边 + `surfaceContainerLowest` 底，选中 2dp `primary` 描边 + `surfaceContainerLow` 底，描边颜色 `animateColorAsState` ease-out 过渡；卡头 3×20dp 主色竖条随选中强调；卡内开始按钮全宽 44dp（`ui/burnin/BurnInIdleContent.kt` `PlanCard`/`CardHeader`/`CardStartButton`）。
 - **步进器**：40dp 圆形 OutlinedIconButton（内置图标 20dp）夹 160×48dp 居中数字输入框，按钮与输入框间距 12dp；到边界按钮禁用；−/+ 步进做 160ms 数值淡入（`ui/burnin/BurnInIdleContent.kt` `HoursStepperRow`/`StepperIconButton`/`CompactNumberField`）。
 - **紧凑数字输入框（CompactNumberField）**：48dp 高、12dp 圆角、1dp 细描边（错误态描边变 `error` 色）；数字与行尾单位小字整体居中；数字键盘单行；空值显示占位（`ui/burnin/BurnInIdleContent.kt` `CompactNumberField`）。

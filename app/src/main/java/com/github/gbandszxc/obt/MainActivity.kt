@@ -1,6 +1,7 @@
 package com.github.gbandszxc.obt
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color as AndroidColor
 import android.os.Build
@@ -23,6 +24,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.github.gbandszxc.obt.locale.AppLocale
 import com.github.gbandszxc.obt.playback.PlaybackStatus
 import com.github.gbandszxc.obt.ui.BurnInApp
 import com.github.gbandszxc.obt.ui.theme.BurnInTheme
@@ -59,6 +61,11 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             // 无需处理：拒绝时前台服务照常运行，仅通知不展示
         }
+
+    /** 语言切换（含冷启动）：把进程级应用语言应用到 Activity 资源，UI 字符串据此解析。 */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

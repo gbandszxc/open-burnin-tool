@@ -1,5 +1,8 @@
 package com.github.gbandszxc.obt.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -34,11 +37,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.github.gbandszxc.obt.BurnInApplication
+import com.github.gbandszxc.obt.R
+import com.github.gbandszxc.obt.data.AppLanguage
 import com.github.gbandszxc.obt.data.BurnInSession
 import com.github.gbandszxc.obt.data.SessionStatus
+import com.github.gbandszxc.obt.locale.AppLocale
 import com.github.gbandszxc.obt.playback.BurnInViewModel
 import com.github.gbandszxc.obt.playback.TrackImportResult
 import com.github.gbandszxc.obt.ui.burnin.BurnInTab
@@ -48,15 +55,22 @@ import com.github.gbandszxc.obt.ui.settings.SettingsTab
 import com.github.gbandszxc.obt.ui.settings.SettingsViewModel
 import kotlinx.coroutines.launch
 
-/** 底部导航的三个页签。 */
+/** 底部导航的三个页签（label 资源 id，展示时按应用语言解析）。 */
 private enum class AppTab(
-    val label: String,
+    val labelRes: Int,
     val outlinedIcon: ImageVector,
     val filledIcon: ImageVector,
 ) {
-    BURN("煲机", Icons.Outlined.GraphicEq, Icons.Filled.GraphicEq),
-    HISTORY("记录", Icons.Outlined.History, Icons.Filled.History),
-    SETTINGS("设置", Icons.Outlined.Settings, Icons.Filled.Settings),
+    BURN(R.string.tab_burn, Icons.Outlined.GraphicEq, Icons.Filled.GraphicEq),
+    HISTORY(R.string.tab_history, Icons.Outlined.History, Icons.Filled.History),
+    SETTINGS(R.string.tab_settings, Icons.Outlined.Settings, Icons.Filled.Settings),
+}
+
+/** 从 Compose 树的 context 沿包装链找宿主 Activity（语言切换后重建界面用）。 */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 /**
@@ -87,12 +101,14 @@ fun BurnInApp() {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     CompletionFeedback(sessions = sessions, snackbarHostState = snackbarHostState)
-    // 本地音乐导入结果：行内提示（成功带曲目名，失败给重试建议）
+    // 本地音乐导入结果：行内提示（成功带曲目名，失败给重试建议）。
+    // 重建后本 effect 重新收集并捕获新语言 context，提示文案跟随应用语言
+    val context = LocalContext.current
     LaunchedEffect(burnViewModel) {
         burnViewModel.importEvents.collect { result ->
             val message = when (result) {
-                is TrackImportResult.Success -> "已导入「${result.trackName}」"
-                TrackImportResult.Failure -> "导入失败，请重新选择音频文件"
+                is TrackImportResult.Success -> context.getString(R.string.msg_import_success, result.trackName)
+                TrackImportResult.Failure -> context.getString(R.string.msg_import_failure)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -103,19 +119,21 @@ fun BurnInApp() {
             TopAppBar(
                 title = {
                     Text(
-                        when (selectedTab) {
-                            AppTab.BURN -> "煲机助手"
-                            AppTab.HISTORY -> "煲机记录"
-                            AppTab.SETTINGS -> "设置"
-                        },
+                        stringResource(
+                            when (selectedTab) {
+                                AppTab.BURN -> R.string.title_burn
+                                AppTab.HISTORY -> R.string.title_history
+                                AppTab.SETTINGS -> R.string.title_settings
+                            },
+                        ),
                     )
                 },
                 actions = {
                     if (selectedTab == AppTab.BURN) {
                         // 煲机页多行插电/后台播放提示收进顶栏行尾 info 图标（原页脚说明已移除）
                         InfoAction(
-                            title = "煲机提示",
-                            description = "建议插电并保持耳机连接，煲机会在后台继续。",
+                            title = stringResource(R.string.top_info_burn_title),
+                            description = stringResource(R.string.top_info_burn_body),
                         )
                         // 与设置页同一字段（SettingsRepository.keepScreenOn）；FLAG 由 MainActivity 协调器应用
                         IconToggleButton(
@@ -130,11 +148,13 @@ fun BurnInApp() {
                                 } else {
                                     Icons.Outlined.LightMode
                                 },
-                                contentDescription = if (appSettings.keepScreenOn) {
-                                    "关闭屏幕常亮"
-                                } else {
-                                    "开启屏幕常亮"
-                                },
+                                contentDescription = stringResource(
+                                    if (appSettings.keepScreenOn) {
+                                        R.string.cd_keep_screen_on_disable
+                                    } else {
+                                        R.string.cd_keep_screen_on_enable
+                                    },
+                                ),
                                 tint = if (appSettings.keepScreenOn) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -149,16 +169,17 @@ fun BurnInApp() {
         bottomBar = {
             NavigationBar {
                 AppTab.entries.forEach { tab ->
+                    val tabLabel = stringResource(tab.labelRes)
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
                         icon = {
                             Icon(
                                 imageVector = if (selectedTab == tab) tab.filledIcon else tab.outlinedIcon,
-                                contentDescription = tab.label,
+                                contentDescription = tabLabel,
                             )
                         },
-                        label = { Text(tab.label) },
+                        label = { Text(tabLabel) },
                     )
                 }
             }
@@ -211,6 +232,15 @@ fun BurnInApp() {
                 onDimKeepAliveChange = { enabled ->
                     scope.launch { settingsViewModel.setDimKeepAlive(enabled) }
                 },
+                onLanguageChange = { language ->
+                    // 先同步更新进程内语言（重建后的界面与通知立刻生效），再落盘；
+                    // 语言是全局配置，重建整个界面最直接，也保证 Compose 全部文案重新解析
+                    AppLocale.update(language)
+                    scope.launch {
+                        settingsViewModel.setLanguage(language)
+                        context.findActivity()?.recreate()
+                    }
+                },
                 modifier = contentModifier,
             )
         }
@@ -226,6 +256,7 @@ private fun CompletionFeedback(
     sessions: List<BurnInSession>,
     snackbarHostState: SnackbarHostState,
 ) {
+    val completedMessage = stringResource(R.string.msg_session_completed)
     val appStartMillis = remember { System.currentTimeMillis() }
     var announcedSessionId by remember { mutableLongStateOf(0L) }
     LaunchedEffect(sessions) {
@@ -237,6 +268,6 @@ private fun CompletionFeedback(
             }
             .maxByOrNull { it.lastUpdatedAt } ?: return@LaunchedEffect
         announcedSessionId = newlyCompleted.id
-        snackbarHostState.showSnackbar("本次煲机已完成")
+        snackbarHostState.showSnackbar(completedMessage)
     }
 }

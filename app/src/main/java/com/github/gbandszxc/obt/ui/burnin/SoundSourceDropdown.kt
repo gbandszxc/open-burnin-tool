@@ -35,11 +35,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.github.gbandszxc.obt.R
 import com.github.gbandszxc.obt.data.LocalTrack
 import com.github.gbandszxc.obt.domain.model.SoundSource
 import com.github.gbandszxc.obt.playback.FreeSoundSelection
+import com.github.gbandszxc.obt.ui.soundDisplayName
 
 /** 菜单内容最大高度（约 6-7 行可见，超出滚动），避免曲目多时菜单溢出屏幕。 */
 private const val MENU_MAX_HEIGHT_DP = 380
@@ -95,13 +98,13 @@ internal fun SoundSourceDropdown(
                     .heightIn(max = MENU_MAX_HEIGHT_DP.dp)
                     .verticalScroll(rememberScrollState()),
             ) {
-                SectionHeader("内置音效")
+                SectionHeader(stringResource(R.string.group_builtin_sounds))
                 SoundSource.catalog.forEach { sound ->
                     val isSelected = selected is FreeSoundSelection.Builtin && selected.sound == sound
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = sound.displayName,
+                                text = soundDisplayName(sound),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = if (isSelected) {
                                     MaterialTheme.colorScheme.primary
@@ -117,12 +120,12 @@ internal fun SoundSourceDropdown(
                     )
                 }
                 MenuDivider()
-                SectionHeader("本地音乐")
+                SectionHeader(stringResource(R.string.group_local_music))
                 if (tracks.isEmpty()) {
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = "暂无本地音乐，可从下方导入",
+                                text = stringResource(R.string.empty_local_music),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -156,7 +159,7 @@ internal fun SoundSourceDropdown(
                             IconButton(onClick = { onDeleteRequest(track) }) {
                                 Icon(
                                     imageVector = Icons.Outlined.Delete,
-                                    contentDescription = "移除「${track.displayName}」",
+                                    contentDescription = stringResource(R.string.cd_remove_track, track.displayName),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
                                 )
@@ -175,14 +178,14 @@ internal fun SoundSourceDropdown(
                                 )
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    text = "正在导入…",
+                                    text = stringResource(R.string.item_importing),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         } else {
                             Text(
-                                text = "＋ 导入本地音乐…",
+                                text = stringResource(R.string.item_import_music),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -226,7 +229,10 @@ private fun TriggerRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = selected.label,
+            text = when (selected) {
+                is FreeSoundSelection.Builtin -> soundDisplayName(selected.sound)
+                is FreeSoundSelection.LocalMusic -> selected.track.displayName
+            },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
@@ -236,7 +242,9 @@ private fun TriggerRow(
         Spacer(Modifier.width(8.dp))
         Icon(
             imageVector = Icons.Filled.ArrowDropDown,
-            contentDescription = if (expanded) "收起音效列表" else "展开音效列表",
+            contentDescription = stringResource(
+                if (expanded) R.string.cd_collapse_sound_list else R.string.cd_expand_sound_list,
+            ),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

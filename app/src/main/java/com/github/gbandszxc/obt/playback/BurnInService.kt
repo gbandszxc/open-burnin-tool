@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
@@ -15,6 +16,9 @@ import androidx.core.app.ServiceCompat
 import com.github.gbandszxc.obt.BurnInApplication
 import com.github.gbandszxc.obt.MainActivity
 import com.github.gbandszxc.obt.R
+import com.github.gbandszxc.obt.locale.AppLocale
+import com.github.gbandszxc.obt.ui.phaseDisplayName
+import com.github.gbandszxc.obt.ui.planDisplayName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,11 +44,17 @@ class BurnInService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var stateCollectJob: Job? = null
+    private var languageCollectJob: Job? = null
 
     /** 上次渲染进通知的「渲染键」快照：仅离散变化才重建通知。 */
     private var lastRendered: PlaybackState? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /** 语言切换（含冷启动）：把进程级应用语言应用到服务资源，通知字符串据此解析。 */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -98,18 +108,29 @@ class BurnInService : Service() {
                 }
             }
         }
+        if (languageCollectJob == null) {
+            // 应用内切换语言时按最后一次状态立即重渲染通知；与 Activity recreate 独立，
+            // 保证后台播放中设置页改语言，通知栏同样即时换语言
+            languageCollectJob = serviceScope.launch {
+                (application as BurnInApplication).appContainer.settingsRepository.language.collect {
+                    lastRendered?.let { notifySafely(it) }
+                }
+            }
+        }
         return START_STICKY
     }
 
     override fun onDestroy() {
         stateCollectJob?.cancel()
         stateCollectJob = null
+        languageCollectJob?.cancel()
+        languageCollectJob = null
         serviceScope.cancel()
         super.onDestroy()
     }
 
     /**
-     * 通知重建判定：状态档位、会话、方案、阶段任一变化才重建；
+     * 通知重建判定：状态档位、会话、方案、阶段序号任一变化才重建；
      * 每秒 tick 引起的已煲/剩余变化交给 chronometer 自走，避免每秒整条重建。
      */
     private fun shouldRerender(newState: PlaybackState): Boolean {
@@ -117,7 +138,7 @@ class BurnInService : Service() {
         return last.status != newState.status ||
             last.sessionId != newState.sessionId ||
             last.planId != newState.planId ||
-            last.phaseName != newState.phaseName
+            last.phaseIndex != newState.phaseIndex
     }
 
     private fun notifySafely(state: PlaybackState) {
@@ -129,14 +150,21 @@ class BurnInService : Service() {
         }
     }
 
+    /**
+     * 通知构建上下文：服务 attach 后语言可能被应用内切换，base 上下文停留在旧语言；
+     * 每次构建按进程级当前语言现包装一次（轻量），保证通知即时跟随切换。
+     */
+    private fun localizedContext(): Context = AppLocale.wrap(baseContext)
+
     private fun buildNotification(state: PlaybackState): Notification {
+        val context = localizedContext()
         val paused = state.isPaused
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(
-                getString(
+                context.getString(
                     if (paused) R.string.notif_title_paused else R.string.notif_title_playing,
-                    state.planName,
+                    planDisplayName(state, context),
                 ),
             )
             .setOngoing(true)
@@ -146,19 +174,28 @@ class BurnInService : Service() {
             .setContentIntent(contentIntent())
             .addAction(
                 /* icon = */ 0,
-                getString(if (paused) R.string.notif_action_resume else R.string.notif_action_pause),
+                context.getString(if (paused) R.string.notif_action_resume else R.string.notif_action_pause),
                 servicePendingIntent(if (paused) ACTION_RESUME else ACTION_PAUSE, REQUEST_CODE_TOGGLE),
             )
             .addAction(
                 /* icon = */ 0,
-                getString(R.string.notif_action_stop),
+                context.getString(R.string.notif_action_stop),
                 servicePendingIntent(ACTION_STOP, REQUEST_CODE_STOP),
             )
         if (paused) {
-            builder.setContentText(getString(R.string.notif_text_paused, formatBurnDuration(state.remainingSeconds)))
+            builder.setContentText(
+                context.getString(
+                    R.string.notif_text_paused,
+                    formatBurnDuration(state.remainingSeconds, context.getString(R.string.duration_cross_day_fmt)),
+                ),
+            )
         } else {
             builder.setContentText(
-                getString(R.string.notif_text_playing, state.phaseName, formatBurnDuration(state.completedSeconds)),
+                context.getString(
+                    R.string.notif_text_playing,
+                    phaseDisplayName(state, context),
+                    formatBurnDuration(state.completedSeconds, context.getString(R.string.duration_cross_day_fmt)),
+                ),
             )
             // 倒计时终点 = 当前时刻 + 剩余毫秒，系统 chronometer 自动逐秒递减
             builder.setUsesChronometer(true)
@@ -185,12 +222,14 @@ class BurnInService : Service() {
         )
 
     /** 空闲占位通知：仅供「启动即退场」路径满足系统前台约束，瞬时存在。 */
-    private fun buildEmptyNotification(): Notification =
-        NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun buildEmptyNotification(): Notification {
+        val context = localizedContext()
+        return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(getString(R.string.app_name))
+            .setContentTitle(context.getString(R.string.app_name))
             .setOngoing(true)
             .build()
+    }
 
     /**
      * 通知渠道统一创建：burn_playback（前台常驻，低重要级不打扰）与 burn_complete
@@ -198,21 +237,22 @@ class BurnInService : Service() {
      * 每次创建为幂等操作（系统对已存在渠道按新配置更新）。
      */
     private fun createNotificationChannel() {
+        val context = localizedContext()
         val manager = getSystemService(NotificationManager::class.java)
         val playbackChannel = NotificationChannel(
             CHANNEL_ID,
-            getString(R.string.notif_channel_name),
+            context.getString(R.string.notif_channel_name),
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = getString(R.string.notif_channel_description)
+            description = context.getString(R.string.notif_channel_description)
             setShowBadge(false)
         }
         val completeChannel = NotificationChannel(
             COMPLETE_CHANNEL_ID,
-            getString(R.string.notif_complete_channel_name),
+            context.getString(R.string.notif_complete_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = getString(R.string.notif_complete_channel_description)
+            description = context.getString(R.string.notif_complete_channel_description)
         }
         manager.createNotificationChannel(playbackChannel)
         manager.createNotificationChannel(completeChannel)

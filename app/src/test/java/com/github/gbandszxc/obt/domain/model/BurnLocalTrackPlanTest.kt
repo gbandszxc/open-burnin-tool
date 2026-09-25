@@ -67,18 +67,19 @@ class BurnLocalTrackPlanTest {
     @Test
     fun `quick本地音乐_阶段名与显示名用soundLabel`() {
         val plan = BurnPlans.quick(8, localTrackId = 5L, soundLabel = "我的一曲.flac")
+        // phase.name 是日志/测试用内部标识：带 soundLabel（曲目名）便于日志定位；plan.name 即 planId
         assertEquals("我的一曲.flac", plan.phases[0].name)
-        assertEquals("快速煲机 8 小时 · 我的一曲.flac", plan.name)
+        assertEquals("quick_8h", plan.name)
     }
 
     @Test
     fun `quick本地音乐_未传或空白标签回退默认文案`() {
         val unlabeled = BurnPlans.quick(2, localTrackId = 7L)
-        assertEquals("本地音乐", unlabeled.phases[0].name)
-        assertEquals("快速煲机 2 小时 · 本地音乐", unlabeled.name)
+        assertEquals("local_track", unlabeled.phases[0].name)
+        assertEquals("quick_2h", unlabeled.name)
 
         val blankLabeled = BurnPlans.quick(2, localTrackId = 7L, soundLabel = "   ")
-        assertEquals("本地音乐", blankLabeled.phases[0].name)
+        assertEquals("local_track", blankLabeled.phases[0].name)
     }
 
     @Test
@@ -93,10 +94,10 @@ class BurnLocalTrackPlanTest {
     fun `quick缺省调用不受新参数影响`() {
         val plan = BurnPlans.quick(8)
         assertEquals("quick_8h", plan.id)
-        assertEquals("快速煲机 8 小时", plan.name)
+        assertEquals("quick_8h", plan.name)
         val phase = plan.phases[0]
         assertNull(phase.localTrackId)
-        assertEquals("快速白噪", phase.name)
+        assertEquals("quick_WHITE_NOISE", phase.name)
         assertEquals(SoundSource.WHITE_NOISE, phase.soundSource)
     }
 }
