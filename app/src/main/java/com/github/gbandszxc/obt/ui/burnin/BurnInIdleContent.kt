@@ -99,7 +99,7 @@ private fun easeOutColorSpec(): FiniteAnimationSpec<Color> =
  * │         5 小时              │
  * │ [● 方案煲机 | 自由煲机]      │ ← SegmentedButton（icon = {} 去对钩）
  * │（方案煲机态）                │
- * │ ▍标准四阶段 · 120 小时 [卡]  │ ← 选中主色描边，含阶段链说明
+ * │ ▍标准四阶段 · 120 小时 ⓘ[卡] │ ← 选中主色描边，ⓘ 点开看各阶段音效明细
  * │   上次进度 03:18:22（有则）   │
  * │   [ 继续 ]  [ 全新开始 ]    │
  * │ ▍自定义四阶段 ⓘ        [卡] │ ← ⓘ 点开看四阶段比例说明
@@ -237,6 +237,8 @@ private fun PlanModeContent(
             title = PlanCard.CLASSIC.displayTitle,
             subtitle = "舒筋 12h 白噪 → 活络 12h 粉噪 → 习武 72h 粉噪 → 打擂 24h 轮换",
             accent = classicSelected,
+            infoTitle = PlanCard.CLASSIC.displayTitle,
+            infoBody = CLASSIC_PHASES_INFO,
         )
         Spacer(Modifier.height(14.dp))
         // 续播入口只对选中卡展示：resumable 查询跟随当前选中方案（planId）
@@ -322,6 +324,16 @@ private val PlanCard.displayTitle: String
         PlanCard.CLASSIC -> "标准四阶段 · 120 小时"
         PlanCard.CUSTOM -> "自定义四阶段"
     }
+
+/** 标准四阶段卡的 info 弹窗正文：各阶段名称 / 时长 / 音效 / 音量，与 [BurnPlans.CLASSIC_PHASES] 一致。 */
+private val CLASSIC_PHASES_INFO = """
+    全程 120 小时，按「先轻后重」分四个阶段：
+
+    舒筋 · 12h · 白噪音（20% 音量）
+    活络 · 12h · 粉红噪音（33% 音量）
+    习武 · 72h · 粉红噪音恒定（47% 音量）
+    打擂 · 24h · 白噪音与粉红噪音每 30 分钟轮换（60% 音量）
+""".trimIndent()
 
 /** 自定义四阶段卡的 info 弹窗正文：各阶段名称 / 占比 / 音效，与 [BurnPlans.custom] 等比缩放一致。 */
 private val CUSTOM_PHASES_INFO = """
@@ -602,8 +614,13 @@ private fun FreeModeContent(
         AlertDialog(
             onDismissRequest = { pendingDeleteTrack = null },
             title = { Text("移除本地音乐？") },
+            // 只删应用私有目录（filesDir/burn_music/）下的副本与导入记录，源文件不受影响，
+            // 文案必须如实说明，避免用户误以为原始音频文件会被删除
             text = {
-                Text("「${track.displayName}」的音频文件与记录将被删除，且无法恢复。")
+                Text(
+                    "将移除「${track.displayName}」在煲机助手中的导入记录与应用内副本，" +
+                        "不会删除你的原始音频文件。无法恢复的是导入记录。",
+                )
             },
             confirmButton = {
                 TextButton(
