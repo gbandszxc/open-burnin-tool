@@ -151,14 +151,14 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
-// 产物命名规范：煲机助手-v<versionName>-<abi>-<variant>.apk
-// （如 煲机助手-v1.4.0-arm64-v8a-release.apk）；abi 取 splits 生成的 ABI filter 标识，
+// 产物命名规范：open-burnin-tool-v<versionName>-<abi>-<variant>.apk
+// （如 open-burnin-tool-v1.4.0-arm64-v8a-release.apk）；abi 取 splits 生成的 ABI filter 标识，
 // variant 即 release/debug；版本号引用 appVersionName 单一来源。
 androidComponents {
     onVariants { variant ->
         variant.outputs.forEach { output ->
             val abi = output.filters.firstOrNull()?.identifier
-            output.outputFileName.set("煲机助手-v$appVersionName-$abi-${variant.name}.apk")
+            output.outputFileName.set("open-burnin-tool-v$appVersionName-$abi-${variant.name}.apk")
         }
     }
 }
