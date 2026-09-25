@@ -5,7 +5,7 @@
 <h1 align="center">煲机助手 · Burn-in Tool</h1>
 
 <p align="center">
-  安卓耳机煲机（burn-in）工具 · 用科学的声音信号让新耳机的振膜更快进入稳定状态 · 全程离线、无账号、免费开源
+  安卓耳机煲机（burn-in）工具 · 用科学的声音信号让新耳机的振膜更快进入稳定状态 · 除检查更新外全程离线、无账号、免费开源
 </p>
 
 <p align="center">
@@ -50,6 +50,14 @@
 - 深浅色主题：跟随系统 / 强制浅色 / 强制深色。
 - Android 12+ 动态取色，另有 6 套预置调色盘可选。
 - 简体中文 / 英文双语：默认跟随系统语言自动检测，可在设置中手动切换，切换即时生效。
+
+### 应用内更新
+
+- **更新来源**：检查本仓库的 GitHub Release（匿名访问公开页面，不需要账号、token 或任何配置），按设备 ABI 匹配资产（优先 `arm64-v8a`，其次 `armeabi-v7a`），只下载 release 包。
+- **自动检查**：应用启动时静默检查一次，发现新版本弹窗询问「稍后 / 下载并安装」；已是最新或检查失败时静默不打扰。
+- **手动检查**：设置 → 关于 → 「检查更新」；结果明确反馈已是最新、发现新版本、本机架构无适配包或检查失败。
+- **下载与安装**：下载进度可视（进度条、实时网速、已下载/总大小），完成后交给系统安装器，由用户确认安装，不静默安装。
+- **稍后三档**：本次（仅当前进程）/ 7 天 / 下个版本，仅作用于自动提示，手动检查不受影响。
 
 ## 技术栈
 
@@ -98,6 +106,8 @@ open-burnin-tool-v<版本号>-<abi>-<debug|release>.apk
 
 例如 `open-burnin-tool-v1.5.0-arm64-v8a-release.apk`、`open-burnin-tool-v1.5.0-armeabi-v7a-debug.apk`。
 
+推送 `v*` 形式的 Git 标签会触发 `.github/workflows/release.yml`，自动构建双架构 release APK 并创建/更新对应的 GitHub Release，把两个 APK 作为 Release 资产上传；应用内更新即从这些 Release 资产按 ABI 匹配下载。
+
 ## 目录结构
 
 ```
@@ -105,7 +115,8 @@ app/src/main/java/com/github/gbandszxc/obt/
 ├── data/       # Room 持久化、仓库与设置
 ├── domain/     # 煲机方案与进度逻辑
 ├── playback/   # 前台服务、合成音源播放器、播放控制
-└── ui/         # Compose 界面（煲机 / 记录 / 设置 / 主题）
+├── update/     # 应用内更新（检查 / 下载 / 安装）
+└── ui/         # Compose 界面（煲机 / 记录 / 设置 / 主题；更新弹窗在 ui/update/）
 docs/           # 产品定义（PRODUCT.md）与设计系统（DESIGN.md）
 ```
 

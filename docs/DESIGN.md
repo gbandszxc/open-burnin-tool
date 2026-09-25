@@ -49,6 +49,8 @@
 - **音效下拉（SoundSourceDropdown）**：收起态 44dp 只读触发行（与分段按钮行对齐）；展开菜单最高 380dp 内滚动，按「内置音效/本地音乐」分组；选中强调只用主色文字（无对钩）；本地音乐行尾删除图标（`ui/burnin/SoundSourceDropdown.kt`）。
 - **对话框**：危险操作（结束煲机/清除记录/移除本地音乐）用 `AlertDialog` + 文本按钮；破坏性确认钮用 `error` 色（`ui/burnin/BurnInTab.kt`、`ui/history/HistoryTab.kt` `ClearConfirmDialog`、`ui/burnin/BurnInIdleContent.kt`）。
 - **控制按钮**：播放态「暂停/继续」「结束」高 52dp、图标 24dp + 8dp 间距、`titleMedium` 文案，水平间距 12dp（`ui/burnin/BurnInTab.kt` ActiveContent）。
+- **设置页动作行（ActionRow）**：整行可点（`clickable`，`fillMaxWidth` + 最小高 48dp），标题 `bodyLarge`/`onSurface`，行尾 `Icons.AutoMirrored.Outlined.KeyboardArrowRight` 20dp `onSurfaceVariant`、`contentDescription = null`（纯装饰指示，不单独响应）；可带一行 `bodySmall`/`onSurfaceVariant` 副标题（复用 `Caption`）。用于「关于」分组的「检查更新」，以及 Debug 构建专属的两条预览入口（`ui/settings/SettingsTab.kt` `ActionRow`）。
+- **更新弹窗（UpdateHost）**：四态 `AlertDialog`，检查中与下载进度不可取消（`DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)`）。检查中 = 标题 + 说明 + 居中 `CircularProgressIndicator`；发现新版本 = 标题「发现新版本 x.y.z」+ 正文（匹配 ABI + 安装包名），确认钮「下载并安装」、取消钮「稍后」，外部/返回等同「稍后」进入选项；稍后三档 = 说明 + 三个整行可点选项（本次 / 7 天 / 下个版本，`bodyLarge` `primary`、最小高 48dp）；下载进度 = 文件名（单行省略）+ `LinearProgressIndicator`（总量已知用确定进度 `progress = { 比例 }`，未知用不确定态）+ 一行「速度 + 已下载/总量」（`bodySmall` `onSurfaceVariant`）+ 说明。速度/大小单位文案走字符串资源（`ui/update/UpdateHost.kt`）。
 
 ## 间距与形状
 

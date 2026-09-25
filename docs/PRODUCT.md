@@ -4,7 +4,7 @@
 
 ## 产品定位
 
-安卓耳机煲机工具（名称：中文「煲机助手」/ 英文「Burn-in Tool」，英文标识统一为 Burn-in Tool，不再使用 Burn-in Assistant）：用科学的声音信号（噪声/扫频）与用户自定义本地音乐让新耳机振膜快速进入稳定状态。全程离线、无账号、免费开源，适合拿到新耳机、想按方案或自由节奏煲机的个人用户。
+安卓耳机煲机工具（名称：中文「煲机助手」/ 英文「Burn-in Tool」，英文标识统一为 Burn-in Tool，不再使用 Burn-in Assistant）：用科学的声音信号（噪声/扫频）与用户自定义本地音乐让新耳机振膜快速进入稳定状态。除「检查更新」会匿名访问 GitHub 公开 Release 页面外，煲机功能全程离线、无账号、免费开源，适合拿到新耳机、想按方案或自由节奏煲机的个人用户。
 
 ## 核心功能清单
 
@@ -58,6 +58,17 @@
 - 应用内切换覆盖系统语言且重启后保持（DataStore 持久化）；Activity 与前台服务在 `attachBaseContext` 统一经 `AppLocale.wrap` 应用语言。
 - 文案单一来源：全部用户可见文案入 `res/values/`（英文默认）与 `res/values-zh/`（中文）；方案/阶段/音源展示名由播放状态的结构化身份（planId/阶段身份 stageId/音源枚举）在展示层按语言解析（`ui/PlanDisplay.kt`），域层 `BurnPlan.name`/`BurnPhase.name` 仅为内部标识。
 
+### 应用内更新（`update/`、`ui/update/`、`ui/settings/SettingsTab.kt`）
+
+- **更新来源**：本仓库的 GitHub Release（`gbandszxc/open-burnin-tool`）。抓取 `https://github.com/<owner>/<repo>/releases/latest`（跟随重定向取 tag）与 `/releases/expanded_assets/<tag>`（取 APK 下载链接）判定最新版本，匿名访问公开页面，不需要账号、token 或任何配置（不经 GitHub API，因而无匿名限流）。
+- **资产匹配**：按当前设备 ABI 匹配 Release 资产，优先 `arm64-v8a`，其次 `armeabi-v7a`；只匹配 release 变体（与本项目按 ABI 分包的 `-release.apk` 命名对应），不匹配 debug 包。
+- **自动检查**：应用启动时静默检查一次（每个进程仅一次）；发现新版本弹窗询问「稍后 / 下载并安装」；已是最新或检查失败时静默不打扰。
+- **手动检查**：设置页「关于」分组新增「检查更新」入口；点击后显示检查中，结果给出明确反馈——已是最新、发现新版本（弹窗，含适用架构与安装包名）、有新版本但本机架构无适配包、检查失败（含原因）。
+- **「稍后」策略**：三档 —— 本次（仅当前进程跳过下一次自动提示，不落库）、7 天（7 天内不再自动提示，到期自动失效）、下个版本（只跳过该版本，更高版本仍提示）。**手动检查更新不受「稍后」策略影响。**
+- **下载与安装**：点「下载并安装」后显示下载进度弹窗（安装包名、进度条、实时网速、已下载/总大小），下载到应用缓存目录 `cacheDir/updates/`；完成后经 FileProvider 交给系统安装器安装，不静默安装，安装动作始终由用户在系统安装器上确认。下载失败会清理半成品文件并提示；「安装未知应用」权限未开启时引导用户到系统设置页开启。
+- **权限**：新增 `INTERNET`（仅用于检查更新与下载更新包）与 `REQUEST_INSTALL_PACKAGES`（仅用于把更新包交给系统安装器）；其余功能仍然全程离线。
+- **Debug 预览入口**：Debug 构建在设置页「关于」分组额外显示「预览更新提示」「预览下载进度」两项，仅用于不联网预览弹窗样式，Release 构建不显示。
+
 ## 交互要点
 
 - **可续播**：标准/自定义方案有未完成会话时，方案卡显示「上次进度」，提供「继续」（从已完成秒数续播）与「全新开始」（旧检查点作废）双入口（`ui/burnin/BurnInIdleContent.kt`、`playback/PlaybackController.start`）。同一方案至多保留一个可续检查点。
@@ -77,3 +88,5 @@
 
 - APK 按 ABI 分包：`armeabi-v7a` 与 `arm64-v8a` 两档，不产 universal 包（`app/build.gradle.kts` 的 `splits.abi`）。
 - 产物命名：`open-burnin-tool-v<版本号>-<abi>-<debug|release>.apk`（如 `open-burnin-tool-v1.5.0-arm64-v8a-release.apk`），版本号由 `appVersionName` 单一来源驱动（`androidComponents.onVariants` 注入）。
+- **发布流程**：推送 `v*` 形式的 Git 标签触发 `.github/workflows/release.yml`，自动构建双架构 release APK 并创建/更新对应的 GitHub Release，把两个 APK 作为 Release 资产上传；这是应用内更新的供给端。现有 CI `.github/workflows/build-apk.yml`（push 到 main 触发）仍只上传 Actions Artifact，不产生 Release。
+- 应用内更新的资产匹配依赖上述命名规范（`open-burnin-tool-v<版本号>-<abi>-release.apk`），改名会破坏更新功能。

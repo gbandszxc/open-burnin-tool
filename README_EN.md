@@ -5,7 +5,7 @@
 <h1 align="center">Burn-in Tool</h1>
 
 <p align="center">
-  An Android headphone burn-in tool · helps a new headphone's diaphragm settle faster with scientifically designed sound signals · fully offline, no account, free and open source
+  An Android headphone burn-in tool · helps a new headphone's diaphragm settle faster with scientifically designed sound signals · fully offline except for update checks, no account, free and open source
 </p>
 
 <p align="center">
@@ -50,6 +50,14 @@
 - Light and dark themes: follow system / force light / force dark.
 - Android 12+ dynamic color, plus 6 preset palettes.
 - Simplified Chinese / English: detected from the system language by default, and switchable manually in Settings with immediate effect.
+
+### In-app updates
+
+- **Update source**: checks this repository's GitHub Releases (public pages fetched anonymously, with no account, token or configuration required) and matches an asset to the device ABI (`arm64-v8a` first, then `armeabi-v7a`), downloading release builds only.
+- **Automatic check**: a silent check runs once per process at app launch; when a newer version is found a dialog asks "Later / Download and install", while an up-to-date result or a failed check stays silent.
+- **Manual check**: Settings → About → "Check for updates"; the result clearly reports up to date, a new version found, a new version with no package for this device's ABI, or a failed check.
+- **Download and install**: download progress is visible (progress bar, live speed, downloaded / total size); once finished the package is handed to the system installer and the user confirms the install — nothing is installed silently.
+- **Later options**: three choices — this time (current process only) / 7 days / this version — affecting automatic prompts only; manual checks are unaffected.
 
 ## Tech stack
 
@@ -98,6 +106,8 @@ open-burnin-tool-v<version>-<abi>-<debug|release>.apk
 
 for example `open-burnin-tool-v1.5.0-arm64-v8a-release.apk` and `open-burnin-tool-v1.5.0-armeabi-v7a-debug.apk`.
 
+Pushing a `v*` Git tag triggers `.github/workflows/release.yml`, which builds release APKs for both ABIs and creates/updates the matching GitHub Release with the two APKs uploaded as release assets; in-app updates download from those release assets, matched by ABI.
+
 ## Project layout
 
 ```
@@ -105,7 +115,8 @@ app/src/main/java/com/github/gbandszxc/obt/
 ├── data/       # Room persistence, repositories and settings
 ├── domain/     # Burn-in plans and progress logic
 ├── playback/   # Foreground service, synthesized-source player, playback control
-└── ui/         # Compose screens (Burn-in / History / Settings / theme)
+├── update/     # In-app updates (check / download / install)
+└── ui/         # Compose screens (Burn-in / History / Settings / theme; update dialogs in ui/update/)
 docs/           # Product definition (PRODUCT.md) and design system (DESIGN.md)
 ```
 
