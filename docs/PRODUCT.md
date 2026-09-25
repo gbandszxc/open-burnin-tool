@@ -4,7 +4,7 @@
 
 ## 产品定位
 
-安卓耳机煲机工具：用科学的声音信号（噪声/扫频）与用户自定义本地音乐让新耳机振膜快速进入稳定状态。全程离线、无账号、免费开源，适合拿到新耳机、想按方案或自由节奏煲机的个人用户。
+安卓耳机煲机工具（名称：中文「煲机助手」/ 英文「Burn-in Tool」，英文标识统一为 Burn-in Tool，不再使用 Burn-in Assistant）：用科学的声音信号（噪声/扫频）与用户自定义本地音乐让新耳机振膜快速进入稳定状态。全程离线、无账号、免费开源，适合拿到新耳机、想按方案或自由节奏煲机的个人用户。
 
 ## 核心功能清单
 
@@ -73,4 +73,4 @@
 ## 打包分发
 
 - APK 按 ABI 分包：`armeabi-v7a` 与 `arm64-v8a` 两档，不产 universal 包（`app/build.gradle.kts` 的 `splits.abi`）。
-- 产物命名：`煲机助手-v<版本号>-<abi>-<debug|release>.apk`（如 `煲机助手-v1.5.0-arm64-v8a-release.apk`），版本号由 `appVersionName` 单一来源驱动（`androidComponents.onVariants` 注入）。
+- 产物命名：`burn-in-tool-v<版本号>-<abi>-<debug|release>.apk`（如 `burn-in-tool-v1.5.0-arm64-v8a-release.apk`），版本号由 `appVersionName` 单一来源驱动（`androidComponents.onVariants` 注入）。

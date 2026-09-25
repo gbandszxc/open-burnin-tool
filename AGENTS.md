@@ -1,4 +1,4 @@
-# AGENTS.md — 煲机助手（Burn-in Assistant）
+# AGENTS.md — 煲机助手（Burn-in Tool）
 
 安卓耳机煲机工具：多音源（合成噪声/扫频/本地音乐）、方案化四阶段煲机与自由煲机、进度记录、后台前台播放。
 
