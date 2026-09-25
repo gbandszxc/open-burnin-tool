@@ -40,14 +40,17 @@ jobs:
       - name: 配置 Gradle 缓存
         uses: gradle/actions/setup-gradle@v4
 
-      - name: 配置 Release 签名（可选，有 Secrets 时才执行）
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      - name: 配置 Release 签名（可选，未配置 Secrets 时跳过）
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "未配置签名 Secrets，跳过签名（按未签名产出）。"
+            exit 0
+          fi
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
           {
             echo "storePassword=$KEYSTORE_PASSWORD"
