@@ -3,7 +3,7 @@ import java.io.FileInputStream
 import java.util.Properties
 
 // 版本号单一来源：defaultConfig 与产物文件名共用（见文件末尾 androidComponents），避免两处硬编码
-val appVersionName = "1.4.0"
+val appVersionName = "1.5.0"
 
 plugins {
     id("com.android.application")
@@ -27,7 +27,7 @@ android {
         applicationId = "com.github.gbandszxc.obt"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
+        versionCode = 4
         versionName = appVersionName
     }
 
