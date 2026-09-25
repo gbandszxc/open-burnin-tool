@@ -1,22 +1,14 @@
-# 手动触发：Actions 页选择本流水线 → Run workflow → 选择构建类型
+# 触发：main 分支推送即自动打包 release
 # 产物：armeabi-v7a / arm64-v8a 两个 APK（命名见 app/build.gradle.kts），随 run 上传为 Artifact。
-# Release 签名（可选）：未配置签名 Secrets 时按未签名产出（与本地无 key.properties 行为一致）；
-# 如需带签名打包，在仓库 Settings → Secrets and variables → Actions 中配置：
+# Release 签名：已在仓库 Settings → Secrets and variables → Actions 配置
 #   ANDROID_KEYSTORE_BASE64（keystore 文件 base64）、ANDROID_KEYSTORE_PASSWORD、
-#   ANDROID_KEY_ALIAS、ANDROID_KEY_PASSWORD
-name: 手动打包 APK（双架构）
+#   ANDROID_KEY_ALIAS、ANDROID_KEY_PASSWORD；未配置时按未签名产出。
+name: 自动打包 APK（双架构）
 
 on:
-  workflow_dispatch:
-    inputs:
-      build_type:
-        description: "构建类型（release 含混淆与资源收缩）"
-        required: true
-        default: "release"
-        type: choice
-        options:
-          - release
-          - debug
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -66,18 +58,14 @@ jobs:
       - name: 打包 APK（armeabi-v7a + arm64-v8a）
         run: |
           chmod +x gradlew
-          if [ "${{ inputs.build_type }}" = "debug" ]; then
-            ./gradlew assembleDebug --console=plain
-          else
-            ./gradlew assembleRelease --console=plain
-          fi
+          ./gradlew assembleRelease --console=plain
 
       - name: 列出产物
-        run: ls -lh "app/build/outputs/apk/${{ inputs.build_type }}/"
+        run: ls -lh app/build/outputs/apk/release/
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
         with:
-          name: burnin-apk-${{ inputs.build_type }}-run${{ github.run_number }}
-          path: app/build/outputs/apk/${{ inputs.build_type }}/*.apk
+          name: burnin-apk-release-run${{ github.run_number }}
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
