@@ -344,8 +344,8 @@ private fun StageRows(
 
 /**
  * 单行阶段行：拖拽手柄（长按拖动，手势只作用于手柄触控盒）+ 位次与阶段名 +
- * 音源摘要 + 行尾响度徽标（点击弹编辑对话框）；稳定阶段行在徽标旁再附编辑图标按钮
- * （点开「稳定阶段播放内容」弹窗），其余行四行形态一致。
+ * 音源摘要 + 行尾响度徽标（点击弹编辑对话框，恒为行尾元素、四行右缘对齐）；
+ * 稳定阶段行在徽标左侧附编辑图标按钮（点开「稳定阶段播放内容」弹窗）。
  */
 @Composable
 private fun StageRowContent(
@@ -432,6 +432,21 @@ private fun StageRowContent(
             )
         }
         Spacer(Modifier.width(8.dp))
+        if (stageId == STAGE_STEADY) {
+            // 稳定行专属编辑入口：打开「稳定阶段播放内容」弹窗（模式切换 + 歌单管理收进弹窗）；
+            // 位于响度徽标左侧，徽标保持为行尾元素、四行右缘对齐
+            IconButton(
+                onClick = onEditSteady,
+                modifier = Modifier.size(STAGE_EDIT_BUTTON_SIZE),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.cd_stage_edit_steady),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
         Text(
             text = "$percent%",
             style = MaterialTheme.typography.labelLarge,
@@ -445,23 +460,6 @@ private fun StageRowContent(
                 }
                 .padding(horizontal = 10.dp, vertical = 5.dp),
         )
-        if (stageId == STAGE_STEADY) {
-            // 稳定行专属编辑入口：打开「稳定阶段播放内容」弹窗（模式切换 + 歌单管理收进弹窗）
-            IconButton(
-                onClick = onEditSteady,
-                modifier = Modifier.size(STAGE_EDIT_BUTTON_SIZE),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Edit,
-                    contentDescription = stringResource(R.string.cd_stage_edit_steady),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        } else {
-            // 非稳定行用等宽占位，保证四行行尾元素右缘对齐
-            Spacer(Modifier.width(STAGE_EDIT_BUTTON_SIZE))
-        }
     }
 }
 
