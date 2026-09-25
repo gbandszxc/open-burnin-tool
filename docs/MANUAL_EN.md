@@ -40,7 +40,7 @@ The four phases default to the order Gentle, Adapt, Steady, Rotation. To change 
 
 ### Adjust phase loudness
 
-Each row shows its phase's loudness at the end of the row. Tap it to change the value, which runs from 1%–100%. The default follows the standard plan's 20%, 33%, 47% and 60% (underlying ratios 1/5, 1/3, 7/15 and 3/5). A change affects only the phases you edited, and Reset to default in the dialog clears that phase's override.
+Each row shows its phase's loudness at the end of the row. Tap it to change the value, which runs from 1%–100%. In the dialog you can step the value up or down by 5% at a time, or type the percentage directly. The default follows the standard plan's 20%, 33%, 47% and 60% (underlying ratios 1/5, 1/3, 7/15 and 3/5). A change affects only the phases you edited, and Reset to default in the dialog clears that phase's override.
 
 During plan burn-in, phase loudness is expressed through the system media volume. When playback starts the app records the volume at that moment, then adjusts it by the phase ratio, and restores the original volume on pause or when the burn-in ends. If setting the system volume fails (for example in Do Not Disturb mode), this session falls back to player-level gain; if the process is killed, the original volume cannot be restored. So the system media volume changes during burn-in, and that is expected. Free burn-in does not use the system volume for loudness; see below.
 
@@ -118,7 +118,7 @@ When the planned duration is reached, the app posts a Burn-in complete system no
 
 The top of the History page shows a cumulative summary with the total burn-in time and the session count, and a clear entry on the right.
 
-Below is the history list, 20 items per page, ordered from newest to oldest start time. Scrolling near the bottom loads the next page automatically, and the end of the list reports how many items are loaded in total. Each row shows the session's time, status, plan and planned duration, and the actual burned-in time. There are four statuses: In progress, Paused, Completed and Stopped.
+Below is the history list, 20 items per page, ordered from newest to oldest start time. Scrolling near the bottom loads the next page automatically, and the end of the list reports how many items are loaded in total. Each row shows the session's time, status, plan and planned duration, and the actual burned-in time. There are four statuses: In progress, Paused, Completed and Stopped. Free burn-in sessions also show the sound source used at the time after the plan; when that source is local music, it shows the track name from the start of the session, or Local music if that track has since been deleted.
 
 Clearing all records asks for confirmation first, then deletes every record and resets the cumulative statistics. This cannot be undone.
 
