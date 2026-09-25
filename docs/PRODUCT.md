@@ -11,8 +11,8 @@
 ### 双路线煲机（煲机页，`ui/burnin/BurnInIdleContent.kt`）
 
 - **方案煲机**（`BurnMode.PLAN`，`playback/BurnInViewModel.kt`）
-  - 标准四阶段 · 120 小时：舒筋 12h 白噪（1/5 音量）→ 活络 12h 粉噪（1/3）→ 习武 72h 粉噪恒定（7/15）→ 打擂 24h 白噪↔粉噪每 30 分钟轮换（3/5）（`domain/model/BurnPlans.kt`；阶段时长/音量沿原版逆向结论，内置音乐音源已移除，音源为本版合成编排）。
-  - 自定义四阶段：总时长 24–240 小时（默认 48，步进 ±12，`BurnInUiState.PLAN_CUSTOM_HOURS_RANGE/_STEP`），按 10/10/60/20 比例缩放到四阶段，打擂轮换周期保持 30 分钟（`BurnPlans.custom`）。
+  - 标准四阶段 · 120 小时：舒缓 12h 白噪（1/5 音量）→ 适应 12h 粉噪（1/3）→ 稳定 72h 粉噪恒定（7/15）→ 轮换 24h 白噪↔粉噪每 30 分钟轮换（3/5）（`domain/model/BurnPlans.kt`；阶段时长/音量沿原版逆向结论，内置音乐音源已移除，音源为本版合成编排）。
+  - 自定义四阶段：总时长 24–240 小时（默认 48，步进 ±12，`BurnInUiState.PLAN_CUSTOM_HOURS_RANGE/_STEP`），按 10/10/60/20 比例缩放到四阶段，轮换阶段轮换周期保持 30 分钟（`BurnPlans.custom`）。
 - **自由煲机**（`BurnMode.FREE`）
   - 音源任选：内置 7 合成音源或已导入的本地音乐（分组下拉，`ui/burnin/SoundSourceDropdown.kt`）。
   - 时长预设 2/8/16/24/48/72 小时（`BurnPlans.QUICK_HOURS`，默认 8h），或自定义 1–999 小时（预设与自定义互斥，`BurnInUiState.FREE_CUSTOM_HOURS_RANGE`）。

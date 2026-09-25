@@ -30,8 +30,8 @@
     <string name="card_classic_title">Standard 4-phase · 120 h</string>
     <string name="card_classic_subtitle">12 h white → 12 h pink → 72 h pink steady → 24 h rotation</string>
     <string name="card_custom_title">Custom 4-phase</string>
-    <string name="info_classic_body">120 hours in total, split into four phases from gentle to strong:\n\nWarm-up · 12 h · White noise (20%% volume)\nActivation · 12 h · Pink noise (33%% volume)\nEndurance · 72 h · Pink noise steady (47%% volume)\nRotation · 24 h · White/pink noise every 30 min (60%% volume)</string>
-    <string name="info_custom_body">Total duration is split into four phases at a fixed 10 / 10 / 60 / 20 ratio:\n\nWarm-up · 10%% · White noise\nActivation · 10%% · Pink noise\nEndurance · 60%% · Pink noise (steady)\nRotation · 20%% · White/pink noise every 30 min</string>
+    <string name="info_classic_body">120 hours in total, split into four phases from gentle to strong:\n\nGentle · 12 h · White noise (20%% volume)\nAdapt · 12 h · Pink noise (33%% volume)\nSteady · 72 h · Pink noise steady (47%% volume)\nAlternate · 24 h · White/pink noise every 30 min (60%% volume)</string>
+    <string name="info_custom_body">Total duration is split into four phases at a fixed 10 / 10 / 60 / 20 ratio:\n\nGentle · 10%% · White noise\nAdapt · 10%% · Pink noise\nSteady · 60%% · Pink noise (steady)\nAlternate · 20%% · White/pink noise every 30 min</string>
     <string name="last_progress_fmt">Last progress %1$s</string>
     <string name="btn_resume">Resume</string>
     <string name="btn_start_fresh">Start fresh</string>
@@ -84,10 +84,10 @@
     <string name="sound_local_track">Local music</string>
 
     <!-- 阶段名与方案名（按 planId / 阶段序号在展示层解析） -->
-    <string name="phase_warmup">Warm-up</string>
-    <string name="phase_activation">Activation</string>
-    <string name="phase_endurance">Endurance</string>
-    <string name="phase_rotation">Rotation</string>
+    <string name="phase_warmup">Gentle</string>
+    <string name="phase_activation">Adapt</string>
+    <string name="phase_endurance">Steady</string>
+    <string name="phase_rotation">Alternate</string>
     <string name="phase_quick_fmt">Quick %1$s</string>
     <string name="plan_classic_name">Standard 4-phase · 120 h</string>
     <string name="plan_quick_fmt">Quick burn-in · %1$d h</string>

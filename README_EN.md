@@ -22,7 +22,7 @@
 
 ### Two burn-in routes
 
-- **Plan burn-in**: Standard 4-phase · 120 hours (white noise warm-up → pink noise activation → pink noise steady endurance → white/pink noise rotating every 30 minutes), or a custom 4-phase plan (total 24–240 hours, automatically split across the four phases at a 10/10/60/20 ratio).
+- **Plan burn-in**: Standard 4-phase · 120 hours (white noise Gentle → pink noise Adapt → constant pink noise Steady → white/pink noise rotating every 30 minutes), or a custom 4-phase plan (total 24–240 hours, automatically split across the four phases at a 10/10/60/20 ratio).
 - **Free burn-in**: pick any sound source, with 2/8/16/24/48/72 hour presets or a custom 1–999 hours.
 - Start / pause / resume / stop; an unfinished plan session keeps a checkpoint, so you can resume from where you left off.
 

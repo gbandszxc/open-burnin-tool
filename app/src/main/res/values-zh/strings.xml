@@ -27,10 +27,10 @@
     <string name="mode_plan">方案煲机</string>
     <string name="mode_free">自由煲机</string>
     <string name="card_classic_title">标准四阶段 · 120 小时</string>
-    <string name="card_classic_subtitle">舒筋 12h 白噪 → 活络 12h 粉噪 → 习武 72h 粉噪 → 打擂 24h 轮换</string>
+    <string name="card_classic_subtitle">舒缓 12h 白噪 → 适应 12h 粉噪 → 稳定 72h 粉噪 → 轮换 24h 白/粉噪交替</string>
     <string name="card_custom_title">自定义四阶段</string>
-    <string name="info_classic_body">全程 120 小时，按「先轻后重」分四个阶段：\n\n舒筋 · 12h · 白噪音（20%% 音量）\n活络 · 12h · 粉红噪音（33%% 音量）\n习武 · 72h · 粉红噪音恒定（47%% 音量）\n打擂 · 24h · 白噪音与粉红噪音每 30 分钟轮换（60%% 音量）</string>
-    <string name="info_custom_body">总时长按 10 / 10 / 60 / 20 等比分为四个阶段：\n\n舒筋 · 10%% · 白噪音\n活络 · 10%% · 粉红噪音\n习武 · 60%% · 粉红噪音（恒定）\n打擂 · 20%% · 白噪音与粉红噪音每 30 分钟轮换</string>
+    <string name="info_classic_body">全程 120 小时，按「先轻后重」分四个阶段：\n\n舒缓 · 12h · 白噪音（20%% 音量）\n适应 · 12h · 粉红噪音（33%% 音量）\n稳定 · 72h · 粉红噪音恒定（47%% 音量）\n轮换 · 24h · 白噪音与粉红噪音每 30 分钟轮换（60%% 音量）</string>
+    <string name="info_custom_body">总时长按 10 / 10 / 60 / 20 等比分为四个阶段：\n\n舒缓 · 10%% · 白噪音\n适应 · 10%% · 粉红噪音\n稳定 · 60%% · 粉红噪音（恒定）\n轮换 · 20%% · 白噪音与粉红噪音每 30 分钟轮换</string>
     <string name="last_progress_fmt">上次进度 %1$s</string>
     <string name="btn_resume">继续</string>
     <string name="btn_start_fresh">全新开始</string>
@@ -83,10 +83,10 @@
     <string name="sound_local_track">本地音乐</string>
 
     <!-- 阶段名与方案名（按 planId / 阶段序号在展示层解析） -->
-    <string name="phase_warmup">舒筋</string>
-    <string name="phase_activation">活络</string>
-    <string name="phase_endurance">习武</string>
-    <string name="phase_rotation">打擂</string>
+    <string name="phase_warmup">舒缓</string>
+    <string name="phase_activation">适应</string>
+    <string name="phase_endurance">稳定</string>
+    <string name="phase_rotation">轮换</string>
     <string name="phase_quick_fmt">快速%1$s</string>
     <string name="plan_classic_name">标准四阶段 · 120 小时</string>
     <string name="plan_quick_fmt">快速煲机 %1$d 小时</string>
