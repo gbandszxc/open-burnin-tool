@@ -1,6 +1,7 @@
 package com.github.gbandszxc.obt.domain.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -179,6 +180,28 @@ class BurnPlansTest {
     fun `快捷小时数返回快捷方案其余返回自定义方案`() {
         assertEquals(BurnPlans.quick(8), BurnPlans.forPresetHours(8))
         assertEquals(BurnPlans.custom(36), BurnPlans.forPresetHours(36))
+    }
+
+    // ---- 响度标记（系统音量模式） ----
+
+    @Test
+    fun `方案煲机标记系统音量模式且快捷方案保持播放器增益`() {
+        // 方案煲机（classic/custom）响度经系统媒体音量表达；自由煲机（quick）维持播放器增益
+        assertTrue(BurnPlans.CLASSIC.loudnessViaSystemVolume)
+        assertTrue(BurnPlans.classic().loudnessViaSystemVolume)
+        assertTrue(BurnPlans.classic(listOf(7L)).loudnessViaSystemVolume)
+        assertTrue(BurnPlans.custom(24).loudnessViaSystemVolume)
+        assertTrue(BurnPlans.custom(24, listOf(7L)).loudnessViaSystemVolume)
+        assertFalse(BurnPlans.quick(8).loudnessViaSystemVolume)
+        assertFalse(BurnPlans.quick(8, localTrackIds = listOf(7L)).loudnessViaSystemVolume)
+    }
+
+    @Test
+    fun `编排派生后系统音量标记随方案保留`() {
+        // withStageOrder / withStageGains 经 data class copy 派生：标记随对象保留，无需特判
+        assertTrue(BurnPlans.CLASSIC.withStageOrder(listOf(3, 2, 1, 0)).loudnessViaSystemVolume)
+        assertTrue(BurnPlans.CLASSIC.withStageGains(mapOf(2 to 0.5)).loudnessViaSystemVolume)
+        assertFalse(BurnPlans.quick(2).withStageGains(mapOf(0 to 0.5)).loudnessViaSystemVolume)
     }
 
     // ---- 模型约束 ----

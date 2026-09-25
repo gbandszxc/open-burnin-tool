@@ -4,7 +4,8 @@ package com.github.gbandszxc.obt.domain.model
  * 煲机方案中的一个阶段。
  *
  * 标准四阶段为「舒缓 12h 白噪 → 适应 12h 粉噪 → 稳定 72h 粉噪 → 轮换 24h 白噪↔粉噪轮换」，
- * 每阶段固定音量（播放器级增益，不劫持系统媒体音量）。
+ * 每阶段固定响度比例（[volumeRatio]）：方案煲机经系统媒体音量表达、自由煲机为播放器级
+ * 增益，由方案级标记 [BurnPlan.loudnessViaSystemVolume] 区分。
  *
  * 阶段有双重定位：[index] 表示播放顺序位置（排序后重编），[stageId] 表示阶段身份
  * （稳定标识，随阶段走）；排序、音量覆盖、单曲注入等编排操作一律按 [stageId] 定位。
@@ -107,6 +108,15 @@ data class BurnPlan(
     /** 方案内部标识（仅日志/测试用）；用户可见的方案名由展示层按 [id] 经资源解析。 */
     val name: String,
     val phases: List<BurnPhase>,
+
+    /**
+     * 响度表达方式标记：true = 方案煲机，各阶段响度经系统媒体音量
+     * （AudioManager STREAM_MUSIC）表达，播放器增益恒 1.0；false = 现状，响度为
+     * 播放器级增益（MediaPlayer.setVolume / AudioTrack.setVolume）。
+     * classic()/custom() 工厂产出 true，quick() 保持 false；[withStageOrder]/
+     * [withStageGains] 等编排派生经 data class copy 随对象保留该标记，无需特判。
+     */
+    val loudnessViaSystemVolume: Boolean = false,
 ) {
     init {
         require(phases.isNotEmpty()) { "煲机方案至少需要一个阶段" }

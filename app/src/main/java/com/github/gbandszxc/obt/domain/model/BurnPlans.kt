@@ -3,6 +3,10 @@ package com.github.gbandszxc.obt.domain.model
 /**
  * 内置煲机预设目录。
  *
+ * 响度语义按方案标记（[BurnPlan.loudnessViaSystemVolume]）区分：方案煲机
+ * （[classic]/[custom]，标记 true）的阶段响度经系统媒体音量表达（播放器增益恒 1.0）；
+ * 快捷自由煲机（[quick]，标记 false）维持播放器级增益。
+ *
  * - [classic]：「标准四阶段 · 120 小时」四阶段方案（[CLASSIC] 为缺省形态）。
  *   阶段时长与音量梯度逐项取自原版逆向结论，音源在原版基础上把内置音乐替换为合成音源
  *   （内置音频资产已移除，见 [CLASSIC_PHASES]）：
@@ -55,8 +59,13 @@ object BurnPlans {
         ),
     )
 
-    /** 原版标准方案（缺省形态，稳定阶段为合成粉噪）。 */
-    val CLASSIC: BurnPlan = BurnPlan("classic_120h", "标准四阶段 · 120 小时", CLASSIC_PHASES)
+    /** 原版标准方案（缺省形态，稳定阶段为合成粉噪）；方案煲机响度经系统媒体音量表达。 */
+    val CLASSIC: BurnPlan = BurnPlan(
+        id = "classic_120h",
+        name = "标准四阶段 · 120 小时",
+        phases = CLASSIC_PHASES,
+        loudnessViaSystemVolume = true,
+    )
 
     /** 快捷预设小时数。 */
     val QUICK_HOURS: List<Int> = listOf(2, 8, 16, 24, 48, 72)
@@ -119,7 +128,13 @@ object BurnPlans {
                 stageId = 0,
             )
         }
-        return BurnPlan(id = "quick_${hours}h", name = "quick_${hours}h", phases = listOf(phase))
+        return BurnPlan(
+            id = "quick_${hours}h",
+            name = "quick_${hours}h",
+            phases = listOf(phase),
+            // 自由煲机维持播放器级增益，响度不经系统媒体音量（与方案煲机区分）
+            loudnessViaSystemVolume = false,
+        )
     }
 
     /**
@@ -136,7 +151,12 @@ object BurnPlans {
         val phases = CLASSIC_PHASES.map { phase ->
             if (phase.stageId == STAGE_STEADY) withSteadyMusic(phase, trackIds) else phase
         }
-        return BurnPlan(id = CLASSIC.id, name = CLASSIC.name, phases = phases)
+        return BurnPlan(
+            id = CLASSIC.id,
+            name = CLASSIC.name,
+            phases = phases,
+            loudnessViaSystemVolume = true,
+        )
     }
 
     /**
@@ -180,7 +200,12 @@ object BurnPlans {
                 if (phase.stageId == STAGE_STEADY) withSteadyMusic(phase, trackIds) else phase
             }
         }
-        return BurnPlan(id = "custom_${hours}h", name = "custom_${hours}h", phases = phases)
+        return BurnPlan(
+            id = "custom_${hours}h",
+            name = "custom_${hours}h",
+            phases = phases,
+            loudnessViaSystemVolume = true,
+        )
     }
 
     /** 按预设小时数取方案：120 小时走原版方案，快捷时长走快捷单阶段方案（默认白噪），其余走等比缩放。 */

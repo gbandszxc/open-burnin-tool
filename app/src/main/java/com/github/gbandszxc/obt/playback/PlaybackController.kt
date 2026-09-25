@@ -63,7 +63,7 @@ private enum class PauseReason {
  * - 本类承载全部控制逻辑：按 [BurnSequencer] 定位音源并以统一的 [BurnSoundPlayer]
  *   抽象驱动（合成音源走 AudioTrack 流式写入，本地音乐走 MediaPlayer 播放私有目录文件、
  *   歌单循环由完成回调推进）、每秒 tick 检测播放身份（音源/歌单/序号）
- *   变化并无缝切换音源与增益（旧 player 释放、新 player 起播）、
+ *   变化并无缝切换音源与响度（旧 player 释放、新 player 起播）、
  *   单调时钟锚点计时（[BurnProgressEngine.advanceTo]）、音频焦点、WakeLock、
  *   Room 进度落库（每 60 秒 + 暂停/继续/结束/完成时）；
  * - 本地音乐音源（[BurnPhase.localTrackIds] 非空，本阶段按序循环该歌单）：切阶段时经
@@ -75,8 +75,14 @@ private enum class PauseReason {
  * - [BurnInService] 只负责前台保活与通知渲染（含煲机完成系统通知的渠道创建）；
  * - [BurnInViewModel] 把状态暴露给 UI。
  *
- * 增益策略：不移植原版「按阶段覆盖系统媒体流音量」的坏行为，
- * 改为播放器级增益（MediaPlayer.setVolume / AudioTrack.setVolume）。
+ * 响度策略：方案煲机（[BurnPlan.loudnessViaSystemVolume] = true，classic/custom 工厂产出）
+ * 的阶段响度经系统媒体音量（AudioManager STREAM_MUSIC）表达——进入会话先记录原始档位，
+ * 按阶段 volumeRatio 换算档位设置（见 [streamVolumeIndexFor]），播放器增益恒 1.0；
+ * 系统音量设置失败（勿扰模式等受限场景）→ 会话级降级回播放器增益（增益 = 比例），
+ * 本会话不再尝试系统音量、不做自动恢复。暂停 / 结束 / 完成恢复进入会话前的原始档位。
+ * 自由煲机（quick，标记 false）维持播放器级增益（MediaPlayer.setVolume / AudioTrack.setVolume）。
+ * 已知局限：进程被杀后无法恢复原始音量，续播按新会话重新记录原始档位；系统音量模式下
+ * 用户手动改动系统音量，会在下次阶段切换 / 响度变化时被拉回阶段档位（预期行为，不做音量监听）。
  *
  * 线程模型：所有播放/焦点/WakeLock 操作固定在主线程（协程 scope 为 Main.immediate），
  * 音频焦点回调与广播回调默认也投递到主线程，无并发竞争；Room 写入走挂起函数内部 IO 线程。
@@ -140,6 +146,27 @@ class PlaybackController(
     private val unavailableLocalTrackIds = mutableSetOf<Long>()
 
     private var activeGain: Double = Double.NaN
+
+    /**
+     * 进入会话时的系统媒体音量原始档位（STREAM_MUSIC，null 表示非系统音量会话或未记录）。
+     * 仅方案煲机（[BurnPlan.loudnessViaSystemVolume] = true）在 startInternal 起播前记录，
+     * 暂停 / 结束 / 完成时恢复，[resetToIdle] 统一清空。
+     */
+    private var originalStreamVolume: Int? = null
+
+    /**
+     * 本会话系统音量模式是否可用：方案煲机起播时置 true；任一次 setStreamVolume 失败
+     * （勿扰模式等）即置 false，此后本会话整体降级为播放器增益模式、不再尝试恢复。
+     * 自由煲机会话恒为 false（响度走播放器增益，见类头「响度策略」）。
+     */
+    private var systemVolumeAvailable: Boolean = false
+
+    /**
+     * 当前已落到系统音量的响度比例（NaN 表示尚未落位）：用于 tick / 阶段切换时与目标比例
+     * 比较，避免每秒重复写系统设置；暂停恢复原始档位、降级后作废（置 NaN），下次响度
+     * 落位时强制重设。
+     */
+    private var appliedLoudnessRatio: Double = Double.NaN
     private var tickerJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var focusRequest: AudioFocusRequest? = null
@@ -199,6 +226,8 @@ class PlaybackController(
         resumeOnFocusGain = false
         if (!eng.resume()) return
         safePlayback("resume") { player?.resume() }
+        // 系统音量模式：暂停期间已还原为用户档位，重新按当前阶段比例落位（降级模式空转）
+        sequencer?.let { seq -> syncLoudness(seq.positionAt(eng.completedSeconds).volumeRatio) }
         acquireWakeLock()
         registerBecomingNoisy()
         restartTicker()
@@ -244,6 +273,16 @@ class PlaybackController(
         sessionId = newSessionId
         tickCount = 0L
 
+        // 系统音量会话登记：改音量前先记录原始媒体音量档位（暂停/结束/完成时恢复）；
+        // 方案煲机响度改由系统音量承担、播放器增益恒 1.0，自由煲机维持增益模式
+        if (plan.loudnessViaSystemVolume) {
+            originalStreamVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            systemVolumeAvailable = true
+        } else {
+            originalStreamVolume = null
+            systemVolumeAvailable = false
+        }
+
         if (!requestAudioFocus()) {
             Log.e(TAG, "音频焦点获取失败，会话标记放弃")
             abandonAudioFocus()
@@ -256,7 +295,7 @@ class PlaybackController(
         val position = sequencer!!.positionAt(startAtSeconds)
         val created = try {
             createPlayerFor(position)?.apply {
-                player.setGain(position.volumeRatio)
+                player.setGain(playerGainFor(position.volumeRatio))
                 player.start()
             }
         } catch (t: Throwable) {
@@ -277,7 +316,9 @@ class PlaybackController(
         activeLocalTrackIds = created.localTrackIds
         activePlaylistIndex = created.playlistIndex
         activeLocalTrackName = created.localTrackName
-        activeGain = position.volumeRatio
+        activeGain = playerGainFor(position.volumeRatio)
+        // 响度落位：系统音量模式按当前位置比例设系统音量（失败在此处即降级），增益模式已就位
+        syncLoudness(position.volumeRatio)
 
         acquireWakeLock()
         registerBecomingNoisy()
@@ -302,6 +343,9 @@ class PlaybackController(
         tickerJob?.cancel()
         tickerJob = null
         safePlayback("pause") { player?.pause() }
+        // 系统音量模式：暂停期间把媒体音量还给用户（恢复进入会话前的档位，失败仅日志）；
+        // 已应用比例作废，resume 时强制按阶段比例重设
+        restoreOriginalStreamVolume()
         unregisterBecomingNoisy()
         releaseWakeLock()
         // 焦点短暂丢失时保留焦点监听，待 GAIN 自动恢复；其余原因释放焦点让给他人
@@ -329,6 +373,8 @@ class PlaybackController(
         unregisterBecomingNoisy()
         releaseWakeLock()
         abandonAudioFocus()
+        // 会话放弃：恢复进入会话前的系统媒体音量，把音量控制权还给用户
+        restoreOriginalStreamVolume()
 
         persistProgress()
         updateSessionStatus(SessionStatus.ABANDONED)
@@ -362,7 +408,8 @@ class PlaybackController(
     /**
      * 每秒对齐播放链路与时序器定位：播放身份变化（阶段切换、轮换 30 分钟音源切换、
      * 或合成音源与本地歌单/另一份歌单之间切换）→ 创建新播放器并起播后再释放旧播放器
-     * （主线程顺序执行，缝隙最小化）；身份未变但阶段增益变化 → 仅调整增益。
+     * （主线程顺序执行，缝隙最小化）；身份未变但阶段响度变化 → 仅调整响度
+     * （系统音量模式设系统媒体音量档位，增益模式调播放器增益，见 [syncLoudness]）。
      *
      * 播放身份为三元组（音源枚举, 歌单, 曲目序号）。时序器只感知阶段与音源，不感知歌单内
      * 曲目进度，故 tick 计算的目标序号在「歌单未变」时直接沿用当前序号——歌单内推进由
@@ -405,7 +452,7 @@ class PlaybackController(
             )
             val created = try {
                 createPlayerFor(position)?.apply {
-                    player.setGain(position.volumeRatio)
+                    player.setGain(playerGainFor(position.volumeRatio))
                     player.start()
                 }
             } catch (t: Throwable) {
@@ -422,12 +469,84 @@ class PlaybackController(
             activeLocalTrackIds = created.localTrackIds
             activePlaylistIndex = created.playlistIndex
             activeLocalTrackName = created.localTrackName
-            activeGain = position.volumeRatio
+            activeGain = playerGainFor(position.volumeRatio)
+            // 新身份的响度立即落位（阶段切换常伴随比例变化或需降级补偿），不等下一秒 tick
+            syncLoudness(position.volumeRatio)
             return
         }
-        if (position.volumeRatio != activeGain) {
-            safePlayback("gain") { current.setGain(position.volumeRatio) }
-            activeGain = position.volumeRatio
+        syncLoudness(position.volumeRatio)
+    }
+
+    // ------------------------------------------------------------------
+    // 响度落位（系统音量模式 + 失败降级）
+    // ------------------------------------------------------------------
+
+    /**
+     * 当前会话的播放器增益口径：系统音量模式恒 1.0（响度由系统媒体音量承担，播放器满增益，
+     * 避免二次衰减），增益模式（自由煲机 / 降级会话）为阶段比例本身。
+     */
+    private fun playerGainFor(ratio: Double): Double = if (systemVolumeAvailable) 1.0 else ratio
+
+    /**
+     * 把阶段响度比例落位到当前模式：系统音量模式下比例有变化才换算档位并 setStreamVolume
+     * （比例未变跳过，避免每秒 tick 重复写系统设置；用户手动改过的音量会在下一次比例变化时
+     * 被拉回阶段档位，预期行为）；增益模式维持既有 setGain 路径（比例变化才调）。
+     *
+     * 系统音量设置失败 → 记日志、本会话置 [systemVolumeAvailable] = false 整体降级为
+     * 播放器增益（增益 = 比例），并补一次 setGain 补齐响度缺口；本会话不再尝试系统音量，
+     * 不做恢复流程。
+     */
+    private fun syncLoudness(ratio: Double) {
+        if (systemVolumeAvailable) {
+            if (ratio != appliedLoudnessRatio) {
+                applySystemVolume(ratio)
+            }
+            return
+        }
+        val current = player ?: return
+        if (ratio != activeGain) {
+            safePlayback("gain") { current.setGain(ratio) }
+            activeGain = ratio
+        }
+    }
+
+    /**
+     * 系统音量档位落位：按 [streamVolumeIndexFor] 换算 STREAM_MUSIC 档位并设置
+     * （flags = 0，不拉起系统音量 UI）。成功记 [appliedLoudnessRatio]；失败（勿扰模式等
+     * 系统受限场景可能抛异常）→ 会话级降级：置 [systemVolumeAvailable] = false、作废
+     * 已应用比例，并补一次 setGain(ratio)（此时播放器可能仍处于满增益 1.0），此后本会话
+     * 响度整体退回播放器增益模式。
+     */
+    private fun applySystemVolume(ratio: Double) {
+        val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val target = streamVolumeIndexFor(ratio, max)
+        try {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
+        } catch (t: Throwable) {
+            Log.w(TAG, "系统媒体音量设置失败（target=$target/$max），本会话降级为播放器增益", t)
+            systemVolumeAvailable = false
+            appliedLoudnessRatio = Double.NaN
+            safePlayback("degrade-gain") { player?.setGain(ratio) }
+            activeGain = ratio
+            return
+        }
+        appliedLoudnessRatio = ratio
+        Log.i(TAG, "系统媒体音量已设为 $target/$max（响度比例=$ratio）")
+    }
+
+    /**
+     * 恢复进入会话前的系统媒体音量原始档位（[originalStreamVolume]）：暂停 / 结束 / 完成
+     * 时把音量控制权还给用户，失败仅记日志不抛出；同时作废已应用比例，保证恢复播放时
+     * 强制按阶段比例重设。幂等（可重复调用，未记录档位时空操作），运行态由
+     * [resetToIdle] 统一清理。
+     */
+    private fun restoreOriginalStreamVolume() {
+        val original = originalStreamVolume ?: return
+        appliedLoudnessRatio = Double.NaN
+        try {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, original, 0)
+        } catch (t: Throwable) {
+            Log.w(TAG, "系统媒体音量恢复失败（original=$original）", t)
         }
     }
 
@@ -467,7 +586,7 @@ class PlaybackController(
             if (position.phase.localTrackIds != playlist) return@launch
             val created = try {
                 createPlayerFor(position, playlistStartIndex = index)?.apply {
-                    player.setGain(position.volumeRatio)
+                    player.setGain(playerGainFor(position.volumeRatio))
                     player.start()
                 }
             } catch (t: Throwable) {
@@ -484,7 +603,9 @@ class PlaybackController(
             activeLocalTrackIds = created.localTrackIds
             activePlaylistIndex = created.playlistIndex
             activeLocalTrackName = created.localTrackName
-            activeGain = position.volumeRatio
+            activeGain = playerGainFor(position.volumeRatio)
+            // 歌单推进阶段比例通常不变（响度落位空转），防御阶段已切换的极端时序
+            syncLoudness(position.volumeRatio)
             publishState()
         }
     }
@@ -496,6 +617,8 @@ class PlaybackController(
         unregisterBecomingNoisy()
         releaseWakeLock()
         abandonAudioFocus()
+        // 会话完成：恢复进入会话前的系统媒体音量，把音量控制权还给用户
+        restoreOriginalStreamVolume()
 
         persistProgress()
         updateSessionStatus(SessionStatus.COMPLETED)
@@ -537,6 +660,8 @@ class PlaybackController(
     }
 
     private fun resetToIdle() {
+        // 兜底恢复：异常放弃路径（如起播失败）可能已改过系统音量，先还原再清运行态（幂等）
+        restoreOriginalStreamVolume()
         engine = null
         sequencer = null
         currentPlan = null
@@ -548,6 +673,9 @@ class PlaybackController(
         activeLocalTrackName = null
         unavailableLocalTrackIds.clear()
         activeGain = Double.NaN
+        originalStreamVolume = null
+        systemVolumeAvailable = false
+        appliedLoudnessRatio = Double.NaN
         _state.value = PlaybackState.IDLE
     }
 
