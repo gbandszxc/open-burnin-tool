@@ -5,8 +5,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 仅「检查更新」时匿名访问 GitHub 公开发布页，无需账号与 token；其余功能全程离线 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 仅用于把已下载到应用缓存的更新包交给系统安装器，应用自身不静默安装 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-    <!-- targetSdk 36 未申请 INTERNET，应用无法发起任何网络请求（最小权限面） -->
     <application
         android:name=".BurnInApplication"
         android:allowBackup="false"
@@ -28,5 +31,16 @@
             android:name=".playback.BurnInService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!-- 更新包安装：仅暴露缓存目录下的 updates/ 子目录给系统安装器 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_file_paths" />
+        </provider>
     </application>
 </manifest>

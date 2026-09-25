@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +44,21 @@ data class ThemeSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val paletteId: String = DEFAULT_PALETTE_ID,
     val dynamicColor: Boolean = true,
+)
+
+/** 更新提示「稍后」策略。 */
+enum class UpdateSnoozeMode {
+    /** 7 天内不再自动提示。 */
+    SEVEN_DAYS,
+    /** 只跳过指定版本，更高版本仍会提示。 */
+    UNTIL_NEXT_VERSION,
+}
+
+/** 更新提示「稍后」策略快照；[mode] 为 null 表示当前无生效策略。 */
+data class UpdateSnoozeState(
+    val mode: UpdateSnoozeMode? = null,
+    val version: String? = null,
+    val untilMs: Long? = null,
 )
 
 /** DataStore 单例委托：进程内同名文件只允许存在一个 DataStore 实例（官方约束）。 */
@@ -152,6 +168,9 @@ class SettingsRepository(private val appContext: Context) {
         val PLAN_STAGE_GAINS = stringPreferencesKey("plan_stage_gains")
         val PLAN_STEADY_MUSIC_ENABLED = booleanPreferencesKey("plan_steady_music_enabled")
         val PLAN_STEADY_TRACK_IDS = stringPreferencesKey("plan_steady_track_ids")
+        val UPDATE_SNOOZE_MODE = stringPreferencesKey("update_snooze_mode")
+        val UPDATE_SNOOZE_VERSION = stringPreferencesKey("update_snooze_version")
+        val UPDATE_SNOOZE_UNTIL_MS = longPreferencesKey("update_snooze_until_ms")
     }
 
     /** 底层偏好流：读文件抛 IOException（如首次损坏）时按空偏好处理，不让整条流中断；其余异常照抛。 */
@@ -217,6 +236,22 @@ class SettingsRepository(private val appContext: Context) {
     /** 稳定阶段替换曲目的有序 id 列表，缺省空列表。 */
     val planSteadyTrackIds: Flow<List<Long>> = preferences
         .map { parseSteadyTrackIds(it[Keys.PLAN_STEADY_TRACK_IDS]) }
+        .distinctUntilChanged()
+
+    /**
+     * 更新提示「稍后」策略；仅影响自动检查，手动检查不受影响。
+     *
+     * 三键合成为单一快照：无法识别的模式串（含历史脏数据）按无策略处理，向前兼容枚举演进；
+     * 缺到期时间与非 7 天策略均落在 [UpdateSnoozeState] 的 nullable 字段上，由上层判定有效性。
+     */
+    val updateSnooze: Flow<UpdateSnoozeState> = preferences
+        .map { prefs ->
+            UpdateSnoozeState(
+                mode = UpdateSnoozeMode.entries.firstOrNull { it.name == prefs[Keys.UPDATE_SNOOZE_MODE] },
+                version = prefs[Keys.UPDATE_SNOOZE_VERSION],
+                untilMs = prefs[Keys.UPDATE_SNOOZE_UNTIL_MS],
+            )
+        }
         .distinctUntilChanged()
 
     /** 主题设置聚合流：三字段原子快照，供 Activity 首帧与持续收集使用。 */
@@ -286,5 +321,30 @@ class SettingsRepository(private val appContext: Context) {
     /** 保存稳定阶段替换曲目 id 有序列表。 */
     suspend fun setPlanSteadyTrackIds(trackIds: List<Long>) {
         appContext.settingsDataStore.edit { it[Keys.PLAN_STEADY_TRACK_IDS] = formatSteadyTrackIds(trackIds) }
+    }
+
+    /**
+     * 保存更新提示「稍后」策略。
+     * [untilMs] 为 null（下个版本策略）时移除到期时间键，避免残留上一次 7 天策略的时间戳。
+     */
+    suspend fun setUpdateSnooze(mode: UpdateSnoozeMode, version: String, untilMs: Long?) {
+        appContext.settingsDataStore.edit {
+            it[Keys.UPDATE_SNOOZE_MODE] = mode.name
+            it[Keys.UPDATE_SNOOZE_VERSION] = version
+            if (untilMs == null) {
+                it.remove(Keys.UPDATE_SNOOZE_UNTIL_MS)
+            } else {
+                it[Keys.UPDATE_SNOOZE_UNTIL_MS] = untilMs
+            }
+        }
+    }
+
+    /** 清除「稍后」策略（到期失效或用户主动清除时调用）。 */
+    suspend fun clearUpdateSnooze() {
+        appContext.settingsDataStore.edit {
+            it.remove(Keys.UPDATE_SNOOZE_MODE)
+            it.remove(Keys.UPDATE_SNOOZE_VERSION)
+            it.remove(Keys.UPDATE_SNOOZE_UNTIL_MS)
+        }
     }
 }

@@ -2,6 +2,9 @@ package com.github.gbandszxc.obt.data
 
 import android.content.Context
 import com.github.gbandszxc.obt.playback.PlaybackController
+import com.github.gbandszxc.obt.update.GitHubReleaseChecker
+import com.github.gbandszxc.obt.update.UpdateDownloader
+import com.github.gbandszxc.obt.update.UpdateSnoozeStore
 
 /**
  * 手动依赖注入容器（Application 级单例，不用 Hilt）。
@@ -25,4 +28,13 @@ class AppContainer(appContext: Context) {
     val playbackController: PlaybackController by lazy {
         PlaybackController(appContext.applicationContext, burnInRepository, trackRepository)
     }
+
+    /** 应用内更新检查：抓取 GitHub Release 公开页面，无账号无 token。 */
+    val updateChecker: GitHubReleaseChecker by lazy { GitHubReleaseChecker() }
+
+    /** 更新包下载器：落盘到 cacheDir/updates。 */
+    val updateDownloader: UpdateDownloader by lazy { UpdateDownloader(appContext.cacheDir) }
+
+    /** 更新提示「稍后」策略。 */
+    val updateSnoozeStore: UpdateSnoozeStore by lazy { UpdateSnoozeStore(settingsRepository) }
 }

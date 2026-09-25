@@ -185,4 +185,34 @@
     <string name="info_dim_body">While burn-in is playing the screen stays on, dropping to minimum brightness after the system screen-off timeout of inactivity, so background playback is not interrupted on devices that stop it when the screen turns off. Pausing or stopping restores normal behavior.</string>
     <string name="settings_version">Version</string>
     <string name="cd_open_github">Open the GitHub repository in a browser</string>
+    <string name="settings_check_update">Check for updates</string>
+    <string name="settings_preview_update_prompt">Preview update prompt</string>
+    <string name="settings_preview_update_prompt_desc">Debug builds only; no network access, nothing is downloaded or saved.</string>
+    <string name="settings_preview_download_progress">Preview download style</string>
+    <string name="settings_preview_download_progress_desc">Debug builds only; no network access, nothing is installed.</string>
+
+    <!-- 应用内更新（GitHub Release） -->
+    <string name="update_checking_title">Checking for updates</string>
+    <string name="update_checking_message">Fetching the latest release from GitHub…</string>
+    <string name="update_latest_version">You\'re on the latest version</string>
+    <string name="update_check_failed">Failed to check for updates: %1$s</string>
+    <string name="update_network_unavailable">Network unavailable</string>
+    <string name="update_no_matching_asset">Version %1$s is available, but no package matches this device\'s architecture.</string>
+    <string name="update_found_title">Version %1$s is available</string>
+    <string name="update_found_message">Package for %1$s: %2$s</string>
+    <string name="update_later">Later</string>
+    <string name="update_download_install">Download and install</string>
+    <string name="update_snooze_title">Remind me later</string>
+    <string name="update_snooze_message">Choose how long automatic update prompts are skipped. Manual checks are unaffected.</string>
+    <string name="update_snooze_this_session">This session</string>
+    <string name="update_snooze_7_days">7 days</string>
+    <string name="update_snooze_next_version">Next version</string>
+    <string name="update_downloading_title">Downloading update</string>
+    <string name="update_download_message">The system installer will open when the download finishes.</string>
+    <string name="update_download_failed">Failed to download the update: %1$s</string>
+    <string name="update_downloaded_only">Downloaded %1$s MB</string>
+    <string name="update_size_value">%1$s / %2$s MB</string>
+    <string name="update_speed_value">%1$s MB/s</string>
+    <string name="update_speed_unknown">-- MB/s</string>
+    <string name="update_install_permission_needed">Allow installing unknown apps in system settings, then try again.</string>
 </resources>

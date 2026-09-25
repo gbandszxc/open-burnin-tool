@@ -23,6 +23,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,7 +53,7 @@ import com.github.gbandszxc.obt.ui.theme.ThemePalettes
 const val GITHUB_URL = "https://github.com/gbandszxc/open-burnin-tool"
 
 /**
- * 设置 Tab：通用（语言）+ 外观（主题模式/动态取色/主题配色）+ 播放（屏幕常亮/不息屏）+ 关于。
+ * 设置 Tab：通用（语言）+ 外观（主题模式/动态取色/主题配色）+ 播放（屏幕常亮/不息屏）+ 关于（版本/检查更新）。
  * 状态由 [SettingsUiState] 单向驱动，全部变更经挂起回调写回 [com.github.gbandszxc.obt.data.SettingsRepository]；
  * 语言切换由调用方（BurnInApp）负责更新进程内当前语言并重建界面。
  * 多行说明性段落一律收进行尾 ⓘ 图标弹窗（[InfoAction]），页面内只留单行功能性提示。
@@ -73,6 +74,9 @@ const val GITHUB_URL = "https://github.com/gbandszxc/open-burnin-tool"
  * │  不息屏模式            ⓘ ○    │ ← 说明收进行尾 ⓘ，点击弹窗
  * │ 关于                          │
  * │  版本            1.4.0 [↗]   │ ← [↗] 跳转 GitHub
+ * │  检查更新                ›    │ ← 整行可点，手动检查更新
+ * │  预览更新提示            ›    │ ← 仅 Debug 构建插入（下方两行同理）
+ * │  预览下载进度样式        ›    │
  * └──────────────────────────────┘
  * ```
  */
@@ -85,6 +89,9 @@ fun SettingsTab(
     onKeepScreenOnChange: (Boolean) -> Unit,
     onDimKeepAliveChange: (Boolean) -> Unit,
     onLanguageChange: (AppLanguage) -> Unit,
+    onCheckUpdate: () -> Unit,
+    onPreviewUpdatePrompt: () -> Unit,
+    onPreviewDownloadProgress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -177,6 +184,23 @@ fun SettingsTab(
 
         SectionHeader(stringResource(R.string.settings_group_about))
         AboutRow(modifier = Modifier.fillMaxWidth())
+        ActionRow(
+            title = stringResource(R.string.settings_check_update),
+            onClick = onCheckUpdate,
+        )
+        // 仅 Debug 构建插入两条预览入口：BuildConfig.DEBUG 是编译期常量，Release 下整段被裁剪
+        if (BuildConfig.DEBUG) {
+            ActionRow(
+                title = stringResource(R.string.settings_preview_update_prompt),
+                onClick = onPreviewUpdatePrompt,
+                caption = stringResource(R.string.settings_preview_update_prompt_desc),
+            )
+            ActionRow(
+                title = stringResource(R.string.settings_preview_download_progress),
+                onClick = onPreviewDownloadProgress,
+                caption = stringResource(R.string.settings_preview_download_progress_desc),
+            )
+        }
 
         Spacer(Modifier.height(24.dp))
     }
@@ -356,5 +380,40 @@ private fun AboutRow(modifier: Modifier = Modifier) {
                 modifier = Modifier.size(20.dp),
             )
         }
+    }
+}
+
+/** 可点击动作行：整行可点，行尾箭头仅作指示（装饰性，不单独响应）。 */
+@Composable
+private fun ActionRow(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    caption: String? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (caption != null) {
+                Caption(caption)
+            }
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            // 装饰性指示：整行已是可点目标，箭头本身不需要独立语义
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }

@@ -53,6 +53,8 @@ import com.github.gbandszxc.obt.ui.history.HistoryTab
 import com.github.gbandszxc.obt.ui.history.HistoryViewModel
 import com.github.gbandszxc.obt.ui.settings.SettingsTab
 import com.github.gbandszxc.obt.ui.settings.SettingsViewModel
+import com.github.gbandszxc.obt.ui.update.UpdateHost
+import com.github.gbandszxc.obt.ui.update.UpdateViewModel
 import kotlinx.coroutines.launch
 
 /** 底部导航的三个页签（label 资源 id，展示时按应用语言解析）。 */
@@ -89,6 +91,7 @@ fun BurnInApp() {
     val burnViewModel: BurnInViewModel = viewModel(factory = BurnInViewModel.factory(app))
     val historyViewModel: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app))
     val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(app))
+    val updateViewModel: UpdateViewModel = viewModel(factory = UpdateViewModel.factory(app))
 
     val playbackState by burnViewModel.playbackState.collectAsStateWithLifecycle()
     val burnUiState by burnViewModel.uiState.collectAsStateWithLifecycle()
@@ -113,6 +116,9 @@ fun BurnInApp() {
             snackbarHostState.showSnackbar(message)
         }
     }
+
+    // 应用启动静默检查一次更新（每进程仅一次；有新版本且未被「稍后」跳过时才弹窗）
+    LaunchedEffect(Unit) { updateViewModel.checkOnAppStart() }
 
     Scaffold(
         topBar = {
@@ -247,10 +253,16 @@ fun BurnInApp() {
                         context.findActivity()?.recreate()
                     }
                 },
+                onCheckUpdate = { updateViewModel.checkManually() },
+                onPreviewUpdatePrompt = { updateViewModel.previewUpdatePrompt() },
+                onPreviewDownloadProgress = { updateViewModel.previewDownloadProgress() },
                 modifier = contentModifier,
             )
         }
     }
+
+    // 更新弹窗宿主：置于 Scaffold 之后同一层级，弹窗覆盖在最上层
+    UpdateHost(viewModel = updateViewModel)
 }
 
 /**
