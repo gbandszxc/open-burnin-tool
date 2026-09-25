@@ -9,7 +9,7 @@ import org.junit.Test
  * [BurnPlans] 内置预设测试：标准四阶段方案参数逐项对照
  * （总 432000s；阶段 43200/43200/259200/86400；
  * 音源 白噪/粉噪/粉噪恒定/白噪↔粉噪轮换（内置音乐资产移除后的本版编排，阶段时长与音量沿原版）；
- * 音量 1/5、1/3、7/15、3/5；打擂轮换 1800s）。
+ * 音量 1/5、1/3、7/15、3/5；轮换阶段轮换 1800s；阶段身份 stageId 0/1/2/3）。
  */
 class BurnPlansTest {
 
@@ -26,41 +26,45 @@ class BurnPlansTest {
         val phases = BurnPlans.CLASSIC.phases
         assertEquals(4, phases.size)
 
-        val shu = phases[0]
-        assertEquals(0, shu.index)
-        assertEquals("舒筋", shu.name)
-        assertEquals(43_200L, shu.durationSeconds)
-        assertEquals(SoundSource.WHITE_NOISE, shu.soundSource)
-        assertEquals(1.0 / 5.0, shu.volumeRatio, 1e-9)
-        assertNull(shu.alternateWith)
+        val gentle = phases[0]
+        assertEquals(0, gentle.index)
+        assertEquals(0, gentle.stageId)
+        assertEquals("gentle", gentle.name)
+        assertEquals(43_200L, gentle.durationSeconds)
+        assertEquals(SoundSource.WHITE_NOISE, gentle.soundSource)
+        assertEquals(1.0 / 5.0, gentle.volumeRatio, 1e-9)
+        assertNull(gentle.alternateWith)
 
-        val huo = phases[1]
-        assertEquals(1, huo.index)
-        assertEquals("活络", huo.name)
-        assertEquals(43_200L, huo.durationSeconds)
-        assertEquals(SoundSource.PINK_NOISE, huo.soundSource)
-        assertEquals(1.0 / 3.0, huo.volumeRatio, 1e-9)
-        assertNull(huo.alternateWith)
+        val adapt = phases[1]
+        assertEquals(1, adapt.index)
+        assertEquals(1, adapt.stageId)
+        assertEquals("adapt", adapt.name)
+        assertEquals(43_200L, adapt.durationSeconds)
+        assertEquals(SoundSource.PINK_NOISE, adapt.soundSource)
+        assertEquals(1.0 / 3.0, adapt.volumeRatio, 1e-9)
+        assertNull(adapt.alternateWith)
 
-        // 习武：粉噪恒定（原版此阶段为内置音乐恒定，资产移除后替换为粉噪、音量不变）
-        val xi = phases[2]
-        assertEquals(2, xi.index)
-        assertEquals("习武", xi.name)
-        assertEquals(259_200L, xi.durationSeconds)
-        assertEquals(SoundSource.PINK_NOISE, xi.soundSource)
-        assertEquals(7.0 / 15.0, xi.volumeRatio, 1e-9)
-        assertNull(xi.alternateWith)
-        assertNull(xi.alternateEverySeconds)
+        // 稳定：粉噪恒定（原版此阶段为内置音乐恒定，资产移除后替换为粉噪、音量不变）
+        val steady = phases[2]
+        assertEquals(2, steady.index)
+        assertEquals(2, steady.stageId)
+        assertEquals("steady", steady.name)
+        assertEquals(259_200L, steady.durationSeconds)
+        assertEquals(SoundSource.PINK_NOISE, steady.soundSource)
+        assertEquals(7.0 / 15.0, steady.volumeRatio, 1e-9)
+        assertNull(steady.alternateWith)
+        assertNull(steady.alternateEverySeconds)
 
-        // 打擂：白噪↔粉噪每 30 分钟轮换（沿原版轮换位置，偶数段基准音源白噪）
-        val da = phases[3]
-        assertEquals(3, da.index)
-        assertEquals("打擂", da.name)
-        assertEquals(86_400L, da.durationSeconds)
-        assertEquals(SoundSource.WHITE_NOISE, da.soundSource)
-        assertEquals(3.0 / 5.0, da.volumeRatio, 1e-9)
-        assertEquals(SoundSource.PINK_NOISE, da.alternateWith)
-        assertEquals(1_800L, da.alternateEverySeconds)
+        // 轮换：白噪↔粉噪每 30 分钟轮换（沿原版轮换位置，偶数段基准音源白噪）
+        val alternate = phases[3]
+        assertEquals(3, alternate.index)
+        assertEquals(3, alternate.stageId)
+        assertEquals("alternate", alternate.name)
+        assertEquals(86_400L, alternate.durationSeconds)
+        assertEquals(SoundSource.WHITE_NOISE, alternate.soundSource)
+        assertEquals(3.0 / 5.0, alternate.volumeRatio, 1e-9)
+        assertEquals(SoundSource.PINK_NOISE, alternate.alternateWith)
+        assertEquals(1_800L, alternate.alternateEverySeconds)
     }
 
     // ---- 快捷预设 ----
@@ -93,6 +97,8 @@ class BurnPlansTest {
         assertEquals(SoundSource.WHITE_NOISE, phase.soundSource)
         // 白噪默认增益 0.2 恰为原快捷方案固定音量 1/5，缺省调用行为不变
         assertEquals(1.0 / 5.0, phase.volumeRatio, 1e-9)
+        // 单阶段方案阶段身份固定为 0
+        assertEquals(0, phase.stageId)
     }
 
     @Test
@@ -132,12 +138,12 @@ class BurnPlansTest {
     }
 
     @Test
-    fun `自定义方案轮换配置仅存在于打擂且周期不超过阶段时长的一半`() {
-        val plan = BurnPlans.custom(1) // 打擂阶段仅 720 秒
+    fun `自定义方案轮换配置仅存在于轮换阶段且周期不超过阶段时长的一半`() {
+        val plan = BurnPlans.custom(1) // 轮换阶段仅 720 秒
         assertNull(plan.phases[2].alternateWith)
-        val daLei = plan.phases[3]
-        assertEquals(SoundSource.PINK_NOISE, daLei.alternateWith)
-        assertTrue(daLei.alternateEverySeconds!! <= daLei.durationSeconds / 2L)
+        val rotate = plan.phases[3]
+        assertEquals(SoundSource.PINK_NOISE, rotate.alternateWith)
+        assertTrue(rotate.alternateEverySeconds!! <= rotate.durationSeconds / 2L)
     }
 
     @Test
@@ -183,18 +189,42 @@ class BurnPlansTest {
             id = "bad",
             name = "bad",
             phases = listOf(
-                BurnPhase(1, "错位", 100L, SoundSource.WHITE_NOISE, 0.2),
+                BurnPhase(1, "错位", 100L, SoundSource.WHITE_NOISE, 0.2, stageId = 0),
             ),
         )
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `音量比例越界被拒绝`() {
-        BurnPhase(0, "越界", 100L, SoundSource.WHITE_NOISE, 1.2)
+        BurnPhase(0, "越界", 100L, SoundSource.WHITE_NOISE, 1.2, stageId = 0)
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `轮换周期为空时配置被拒绝`() {
-        BurnPhase(0, "坏轮换", 100L, SoundSource.WHITE_NOISE, 0.5, alternateWith = SoundSource.PINK_NOISE)
+        BurnPhase(0, "坏轮换", 100L, SoundSource.WHITE_NOISE, 0.5, alternateWith = SoundSource.PINK_NOISE, stageId = 0)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `阶段身份缺省占位不可直接成案`() {
+        // stageId 构造默认 -1（历史构造点可编译），但 BurnPlan 层拒绝未显式指定身份的方案
+        BurnPlan(
+            id = "no_stage",
+            name = "no_stage",
+            phases = listOf(
+                BurnPhase(0, "缺身份", 100L, SoundSource.WHITE_NOISE, 0.2),
+            ),
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `阶段身份同方案内重复被拒绝`() {
+        BurnPlan(
+            id = "dup_stage",
+            name = "dup_stage",
+            phases = listOf(
+                BurnPhase(0, "甲", 100L, SoundSource.WHITE_NOISE, 0.2, stageId = 1),
+                BurnPhase(1, "乙", 100L, SoundSource.PINK_NOISE, 0.2, stageId = 1),
+            ),
+        )
     }
 }

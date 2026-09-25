@@ -53,10 +53,10 @@ enum class SoundSource(
     /**
      * 本地音乐音源占位项（原 App 音源编号 7 的「音乐煲机」已随内置音频资产移除）。
      * 不对应任何内置资产，也不进 UI 音效目录（见 [catalog]）；仅当方案阶段携带
-     * 本地音轨 id（[BurnPhase.localTrackId] 非空）时作为该阶段的音源枚举，
-     * 实际播放 MediaPlayer 加载用户私有目录的音轨文件，UI 显示曲目名。
+     * 本地音轨（[BurnPhase.localTrackId] 非空或 [BurnPhase.localTrackIds] 非空）时
+     * 作为该阶段的音源枚举，实际播放 MediaPlayer 加载用户私有目录的音轨文件，UI 显示曲目名。
      *
-     * [defaultGainRatio] 取原版习武阶段的 7/15，仅作为本地音源阶段的占位音量
+     * [defaultGainRatio] 取原版稳定阶段的 7/15，仅作为本地音源阶段的占位音量
      * （无阶段音量场景的兜底，实际方案音量由 [BurnPhase.volumeRatio] 决定）。
      */
     LOCAL_TRACK(7, R.string.sound_local_track, 7.0 / 15.0);

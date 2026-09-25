@@ -3,22 +3,36 @@ package com.github.gbandszxc.obt.domain.model
 /**
  * 煲机方案中的一个阶段。
  *
- * 标准四阶段为「舒筋 12h 白噪 → 活络 12h 粉噪 → 习武 72h 粉噪 → 打擂 24h 白噪↔粉噪轮换」，
+ * 标准四阶段为「舒缓 12h 白噪 → 适应 12h 粉噪 → 稳定 72h 粉噪 → 轮换 24h 白噪↔粉噪轮换」，
  * 每阶段固定音量（播放器级增益，不劫持系统媒体音量）。
  *
- * @property index 阶段序号，从 0 开始，随 [BurnPlan.phases] 顺序递增。
- * @property name 阶段内部标识（舒筋/活络/习武/打擂等，仅日志/测试用）；
+ * 阶段有双重定位：[index] 表示播放顺序位置（排序后重编），[stageId] 表示阶段身份
+ * （稳定标识，随阶段走）；排序、音量覆盖、单曲注入等编排操作一律按 [stageId] 定位。
+ *
+ * @property index 阶段序号，从 0 开始，随 [BurnPlan.phases] 顺序递增；
+ *   仅表示播放顺序位置，经 [BurnPlan.withStageOrder] 重排后会被重编。
+ * @property stageId 阶段身份，标准四阶段为 0=舒缓 / 1=适应 / 2=稳定 / 3=轮换。
+ *   构造默认 -1 表示「历史默认」占位（保证既有构造点零改动能编译），但 [BurnPlan] 层
+ *   会拒绝默认值——同方案内 stageId 必须唯一且 >= 0，编排入口须显式传入；
+ *   快捷单阶段方案固定取 0。stageId 一经确定不随播放顺序改变。
+ * @property name 阶段内部标识（gentle/adapt/steady/alternate 等，仅日志/测试用）；
  *   用户可见的阶段名由展示层按阶段序号经资源解析（见 ui/PlanDisplay.kt）。
  * @property durationSeconds 阶段时长（秒）。
  * @property soundSource 基准音源。
- * @property volumeRatio 音量比例，取值 [0.0, 1.0]，如标准四阶段为 1/5、1/3、7/15、3/5。
+ * @property volumeRatio 音量比例，取值 [0.0, 1.0]，如标准四阶段为 1/5、1/3、7/15、3/5；
+ *   编排期可按身份整体覆盖（见 [BurnPlan.withStageGains]）。
  * @property alternateWith 轮换音源；为 null 表示本阶段不轮换。
- * @property alternateEverySeconds 轮换周期（秒）。标准方案的打擂阶段为 1800（30 分钟），
+ *   注意：与本阶段携带 [localTrackIds] 歌单互斥。
+ * @property alternateEverySeconds 轮换周期（秒）。标准方案的轮换阶段为 1800（30 分钟），
  *   按「阶段内已播秒数 / 周期」的奇偶切换基准音源与 [alternateWith]。
  * @property localTrackId 本地音乐音轨 id（Room local_tracks 表，见
  *   com.github.gbandszxc.obt.data.LocalTrack）；**非空时本阶段循环播放该本地音乐文件，
  *   音量走 [volumeRatio]，[soundSource]/[alternateWith]/[alternateEverySeconds] 不参与本阶段**。
  *   默认 null 保持既有行为（历史调用点零改动）。
+ * @property localTrackIds 本地音乐有序歌单（同表音轨 id 列表）；**非空表示本阶段循环播放
+ *   该有序歌单，音量走 [volumeRatio]，[alternateWith]/[alternateEverySeconds] 不参与本阶段，
+ *   且 [soundSource] 必须为 [SoundSource.LOCAL_TRACK]**。与 [localTrackId] 的关系
+ *   （是否收口合并）由后续播放层单元处理；默认空列表保持既有行为。
  */
 data class BurnPhase(
     val index: Int,
@@ -29,6 +43,8 @@ data class BurnPhase(
     val alternateWith: SoundSource? = null,
     val alternateEverySeconds: Long? = null,
     val localTrackId: Long? = null,
+    val stageId: Int = -1,
+    val localTrackIds: List<Long> = emptyList(),
 ) {
     init {
         require(durationSeconds > 0) { "阶段时长必须为正数：$durationSeconds" }
@@ -41,6 +57,17 @@ data class BurnPhase(
         }
         require(localTrackId == null || localTrackId > 0L) {
             "本地音轨 id 必须为正数：$localTrackId"
+        }
+        // 有序歌单约束：id 全为正数且不重复；与轮换互斥；音源必须为本地音乐占位枚举
+        if (localTrackIds.isNotEmpty()) {
+            require(localTrackIds.all { it > 0L }) { "歌单音轨 id 必须全为正数：$localTrackIds" }
+            require(localTrackIds.toSet().size == localTrackIds.size) {
+                "歌单音轨 id 不得重复：$localTrackIds"
+            }
+            require(alternateWith == null) { "同一阶段不可既配置轮换又配置本地音乐歌单" }
+            require(soundSource == SoundSource.LOCAL_TRACK) {
+                "携带歌单的阶段音源必须为 LOCAL_TRACK：$soundSource"
+            }
         }
     }
 
@@ -58,6 +85,9 @@ data class BurnPhase(
  * 煲机方案：阶段按顺序衔接，总时长为各阶段之和。
  *
  * 原版默认方案总时长 432000 秒（120 小时）。
+ *
+ * 方案层校验阶段身份：同方案内各阶段 [BurnPhase.stageId] 必须唯一且 >= 0
+ * （拒绝构造默认的 -1 占位），保证按身份编排（排序/覆盖/注入）定位无歧义。
  */
 data class BurnPlan(
     val id: String,
@@ -71,8 +101,52 @@ data class BurnPlan(
         require(phases.withIndex().all { (position, phase) -> phase.index == position }) {
             "阶段序号必须与列表位置一致（从 0 连续递增）"
         }
+        require(phases.all { it.stageId >= 0 }) {
+            "阶段身份 stageId 必须显式指定且非负（构造默认 -1 不可直接成案）"
+        }
+        require(phases.map { it.stageId }.toSet().size == phases.size) {
+            "同方案内阶段身份 stageId 必须唯一：${phases.map { it.stageId }}"
+        }
     }
 
     /** 总时长（秒）。 */
     val totalSeconds: Long = phases.sumOf { it.durationSeconds }
+
+    /**
+     * 按阶段身份重排播放顺序：[order] 为本方案 [BurnPhase.stageId] 的全排列，
+     * 重排后重编 [BurnPhase.index]（0..n-1 连续）；排序只改播放顺序，
+     * 各阶段时长/音源/音量等属性随阶段身份原样保留。
+     *
+     * @throws IllegalArgumentException [order] 不是本方案 stageId 的全排列
+     *   （缺项/重复/包含未知身份/长度不符）。
+     */
+    fun withStageOrder(order: List<Int>): BurnPlan {
+        val currentIds = phases.map { it.stageId }
+        require(order.size == currentIds.size && order.toSet() == currentIds.toSet()) {
+            "order 必须是方案内 stageId 的全排列：order=$order，方案内身份=$currentIds"
+        }
+        val byStage = phases.associateBy { it.stageId }
+        val reindexed = order.mapIndexed { position, stageId ->
+            byStage.getValue(stageId).copy(index = position)
+        }
+        return copy(phases = reindexed)
+    }
+
+    /**
+     * 按阶段身份覆盖音量比例：[gains] 键为 [BurnPhase.stageId]、值为新比例，
+     * 必须落在 (0, 1]（开区间不含 0）；map 中缺省的身份保持原值，
+     * 本方案不存在的 stageId 宽容忽略（不抛错）。
+     * 比例范围对 [gains] 全部取值校验（含被忽略身份对应的取值）。
+     *
+     * @throws IllegalArgumentException 任一 ratio 落在 (0, 1] 之外。
+     */
+    fun withStageGains(gains: Map<Int, Double>): BurnPlan {
+        gains.forEach { (stageId, ratio) ->
+            require(ratio > 0.0 && ratio <= 1.0) { "音量比例越界（须在 (0, 1]）：stageId=$stageId, ratio=$ratio" }
+        }
+        val patched = phases.map { phase ->
+            gains[phase.stageId]?.let { ratio -> phase.copy(volumeRatio = ratio) } ?: phase
+        }
+        return copy(phases = patched)
+    }
 }
