@@ -55,7 +55,7 @@
 
 - **更新来源**：检查本仓库的 GitHub Release（匿名访问公开页面，不需要账号、token 或任何配置），按设备 ABI 匹配资产（优先 `arm64-v8a`，其次 `armeabi-v7a`），只下载 release 包。
 - **自动检查**：应用启动时静默检查一次，发现新版本弹窗询问「稍后 / 下载并安装」；已是最新或检查失败时静默不打扰。
-- **手动检查**：设置 → 关于 → 「检查更新」；结果明确反馈已是最新、发现新版本、本机架构无适配包或检查失败。
+- **手动检查**：设置 → 关于 → 「检查更新」；检查结果一律以弹窗展示、点确认关闭——「当前已是最新版本」「发现新版本但本机无适配安装包」「检查失败」；发现可用新版本则进入下载安装弹窗。
 - **下载与安装**：下载进度可视（进度条、实时网速、已下载/总大小），完成后交给系统安装器，由用户确认安装，不静默安装。
 - **稍后三档**：本次（仅当前进程）/ 7 天 / 下个版本，仅作用于自动提示，手动检查不受影响。
 
@@ -106,7 +106,13 @@ open-burnin-tool-v<版本号>-<abi>-<debug|release>.apk
 
 例如 `open-burnin-tool-v1.5.0-arm64-v8a-release.apk`、`open-burnin-tool-v1.5.0-armeabi-v7a-debug.apk`。
 
-推送 `v*` 形式的 Git 标签会触发 `.github/workflows/release.yml`，自动构建双架构 release APK 并创建/更新对应的 GitHub Release，把两个 APK 作为 Release 资产上传；应用内更新即从这些 Release 资产按 ABI 匹配下载。
+发布为**手动流程**，无自动发布 workflow：
+
+1. 递增 `app/build.gradle.kts` 顶部的 `appVersionName`，并递增 `defaultConfig` 的 `versionCode`；
+2. `./gradlew assembleRelease`（产物在 `app/build/outputs/apk/release/`）；
+3. 在 GitHub 创建与 `appVersionName` 同名的 `v<版本号>` Release，上传两个 ABI 的 release APK 作为资产。
+
+应用内更新即从这些 Release 资产按 ABI 匹配下载，因此发布时须遵守：**标签/Release 版本号与 `appVersionName` 一致**（应用按资产名中的 `-v<版本号>-` 匹配，不一致会匹配不到、被误报为「未找到适用于当前设备架构的安装包」）、**资产名保持 `open-burnin-tool-v<版本号>-<abi>-release.apk` 不变**（匹配还依赖其中的 `-release` 与 ABI 片段）、**递增 `versionCode`**（否则系统安装器拒绝覆盖安装）、**使用与应用已装版本相同的签名密钥**构建（否则安装器报签名冲突）。现有 CI `.github/workflows/build-apk.yml`（push 到 main 触发）只上传 Actions Artifact，不创建 Release。
 
 ## 目录结构
 

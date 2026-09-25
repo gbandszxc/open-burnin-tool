@@ -55,7 +55,7 @@
 
 - **Update source**: checks this repository's GitHub Releases (public pages fetched anonymously, with no account, token or configuration required) and matches an asset to the device ABI (`arm64-v8a` first, then `armeabi-v7a`), downloading release builds only.
 - **Automatic check**: a silent check runs once per process at app launch; when a newer version is found a dialog asks "Later / Download and install", while an up-to-date result or a failed check stays silent.
-- **Manual check**: Settings → About → "Check for updates"; the result clearly reports up to date, a new version found, a new version with no package for this device's ABI, or a failed check.
+- **Manual check**: Settings → About → "Check for updates"; every result is shown as a dialog dismissed with a confirm button — "already up to date", "a new version exists but no build matches this device's ABI", or "check failed"; a usable new version opens the download prompt instead.
 - **Download and install**: download progress is visible (progress bar, live speed, downloaded / total size); once finished the package is handed to the system installer and the user confirms the install — nothing is installed silently.
 - **Later options**: three choices — this time (current process only) / 7 days / this version — affecting automatic prompts only; manual checks are unaffected.
 
@@ -106,7 +106,13 @@ open-burnin-tool-v<version>-<abi>-<debug|release>.apk
 
 for example `open-burnin-tool-v1.5.0-arm64-v8a-release.apk` and `open-burnin-tool-v1.5.0-armeabi-v7a-debug.apk`.
 
-Pushing a `v*` Git tag triggers `.github/workflows/release.yml`, which builds release APKs for both ABIs and creates/updates the matching GitHub Release with the two APKs uploaded as release assets; in-app updates download from those release assets, matched by ABI.
+Releases are **published manually**; there is no automated release workflow:
+
+1. Bump `appVersionName` at the top of `app/build.gradle.kts` and the `versionCode` in `defaultConfig`;
+2. run `./gradlew assembleRelease` (artifacts land in `app/build/outputs/apk/release/`);
+3. create a `v<version>` GitHub Release named after `appVersionName` and upload both ABI release APKs as its assets.
+
+In-app updates download from those release assets, matched by ABI, so a release must satisfy: **the tag/release version equals `appVersionName`** (the app matches on `-v<version>-` in the asset name, and a mismatch is reported as "no package found for this device's ABI"), **the asset name stays `open-burnin-tool-v<version>-<abi>-release.apk`** (matching also depends on `-release` and the ABI segment), **`versionCode` is incremented** (otherwise the system installer refuses to overwrite the installed version), and the build is **signed with the same key as the installed app** (otherwise the installer reports a signature conflict). The existing CI `.github/workflows/build-apk.yml` (triggered by pushes to main) only uploads an Actions artifact and does not create a Release.
 
 ## Project layout
 

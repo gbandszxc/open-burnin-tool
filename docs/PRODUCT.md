@@ -63,7 +63,7 @@
 - **更新来源**：本仓库的 GitHub Release（`gbandszxc/open-burnin-tool`）。抓取 `https://github.com/<owner>/<repo>/releases/latest`（跟随重定向取 tag）与 `/releases/expanded_assets/<tag>`（取 APK 下载链接）判定最新版本，匿名访问公开页面，不需要账号、token 或任何配置（不经 GitHub API，因而无匿名限流）。
 - **资产匹配**：按当前设备 ABI 匹配 Release 资产，优先 `arm64-v8a`，其次 `armeabi-v7a`；只匹配 release 变体（与本项目按 ABI 分包的 `-release.apk` 命名对应），不匹配 debug 包。
 - **自动检查**：应用启动时静默检查一次（每个进程仅一次）；发现新版本弹窗询问「稍后 / 下载并安装」；已是最新或检查失败时静默不打扰。
-- **手动检查**：设置页「关于」分组新增「检查更新」入口；点击后显示检查中，结果给出明确反馈——已是最新、发现新版本（弹窗，含适用架构与安装包名）、有新版本但本机架构无适配包、检查失败（含原因）。
+- **手动检查**：设置页「关于」分组新增「检查更新」入口；点击后显示不可取消的「检查中」弹窗，结束后结果一律以弹窗展示、点确认关闭——「当前已是最新版本」「发现新版本但本机无适配安装包」「检查失败」（含原因）；发现适用于本机的新版本时则弹出「稍后 / 下载并安装」弹窗（含适用架构与安装包名）。
 - **「稍后」策略**：三档 —— 本次（仅当前进程跳过下一次自动提示，不落库）、7 天（7 天内不再自动提示，到期自动失效）、下个版本（只跳过该版本，更高版本仍提示）。**手动检查更新不受「稍后」策略影响。**
 - **下载与安装**：点「下载并安装」后显示下载进度弹窗（安装包名、进度条、实时网速、已下载/总大小），下载到应用缓存目录 `cacheDir/updates/`；完成后经 FileProvider 交给系统安装器安装，不静默安装，安装动作始终由用户在系统安装器上确认。下载失败会清理半成品文件并提示；「安装未知应用」权限未开启时引导用户到系统设置页开启。
 - **权限**：新增 `INTERNET`（仅用于检查更新与下载更新包）与 `REQUEST_INSTALL_PACKAGES`（仅用于把更新包交给系统安装器）；其余功能仍然全程离线。
@@ -88,5 +88,14 @@
 
 - APK 按 ABI 分包：`armeabi-v7a` 与 `arm64-v8a` 两档，不产 universal 包（`app/build.gradle.kts` 的 `splits.abi`）。
 - 产物命名：`open-burnin-tool-v<版本号>-<abi>-<debug|release>.apk`（如 `open-burnin-tool-v1.5.0-arm64-v8a-release.apk`），版本号由 `appVersionName` 单一来源驱动（`androidComponents.onVariants` 注入）。
-- **发布流程**：推送 `v*` 形式的 Git 标签触发 `.github/workflows/release.yml`，自动构建双架构 release APK 并创建/更新对应的 GitHub Release，把两个 APK 作为 Release 资产上传；这是应用内更新的供给端。现有 CI `.github/workflows/build-apk.yml`（push 到 main 触发）仍只上传 Actions Artifact，不产生 Release。
-- 应用内更新的资产匹配依赖上述命名规范（`open-burnin-tool-v<版本号>-<abi>-release.apk`），改名会破坏更新功能。
+- **发布流程（手动发布，无自动发布 workflow）**：
+  1. 递增 `app/build.gradle.kts` 顶部的 `appVersionName`，并递增同处 `defaultConfig` 的 `versionCode`；
+  2. `./gradlew assembleRelease`（产物在 `app/build/outputs/apk/release/`）；
+  3. 在 GitHub 创建与 `appVersionName` 同名的 `v<版本号>` Release；
+  4. 上传两个 ABI（`arm64-v8a`、`armeabi-v7a`）的 release APK 作为 Release 资产。
+- **发布硬约束**（任一条写错都会让应用内更新静默失效）：
+  - 标签/Release 版本号必须与 `appVersionName` 完全一致：应用端按资产名中的 `-v<版本号>-` 匹配（`update/ReleaseParsing.kt` 的 `findMatchingAsset`），版本号不符会匹配不到，被误报为「未找到适用于当前设备架构的安装包」。
+  - 资产名不可改，必须是 `open-burnin-tool-v<版本号>-<abi>-release.apk`（由 `app/build.gradle.kts` 末尾的 `androidComponents.onVariants` 注入）；匹配规则还依赖其中的 `-release`（据此排除 debug 包）与对应 ABI 片段。
+  - 必须递增 `versionCode`，否则系统安装器拒绝覆盖安装，应用内更新下载完也装不上。
+  - 必须使用与应用已装版本相同的签名密钥构建，否则安装器报签名冲突。
+- 应用内更新的数据来源即上述手动上传的双架构 Release 资产，其匹配依赖 `open-burnin-tool-v<版本号>-<abi>-release.apk` 命名规范。现有 CI `.github/workflows/build-apk.yml`（push 到 main 触发）只上传 Actions Artifact、不创建 Release，与发布无关。
