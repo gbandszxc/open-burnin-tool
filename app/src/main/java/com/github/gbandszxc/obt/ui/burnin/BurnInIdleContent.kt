@@ -67,6 +67,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.gbandszxc.obt.R
 import com.github.gbandszxc.obt.data.LocalTrack
@@ -219,6 +220,9 @@ private fun ModeSwitchRow(mode: BurnMode, onModeChange: (BurnMode) -> Unit) {
                             BurnMode.FREE -> R.string.mode_free
                         },
                     ),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -659,7 +663,12 @@ private fun PresetHoursRow(uiState: BurnInUiState, onSelect: (Int) -> Unit) {
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = presets.size),
                 icon = {},
             ) {
-                Text("${hours}h")
+                Text(
+                    "${hours}h",
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
