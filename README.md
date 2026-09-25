@@ -77,10 +77,10 @@
 APK 按 ABI 分包（`armeabi-v7a` / `arm64-v8a`，无 universal 包），产物统一命名为：
 
 ```
-煲机助手-v<版本号>-<abi>-<debug|release>.apk
+open-burnin-tool-v<版本号>-<abi>-<debug|release>.apk
 ```
 
-例如 `煲机助手-v1.5.0-arm64-v8a-release.apk`、`煲机助手-v1.5.0-armeabi-v7a-debug.apk`。
+例如 `open-burnin-tool-v1.5.0-arm64-v8a-release.apk`、`open-burnin-tool-v1.5.0-armeabi-v7a-debug.apk`。
 
 ## 目录结构
 
