@@ -34,7 +34,7 @@
 
 ## 组件规范
 
-- **SegmentedButton（无对钩）**：`icon = {}` 显式去掉默认对钩，选中态仅 tonal 底 + 描边强调。用于双路线切换与自由煲机时长预设（`ui/burnin/BurnInIdleContent.kt` `ModeSwitchRow`/`PresetHoursRow`）、主题模式与语言三选一（`ui/settings/SettingsTab.kt` `LanguageRow`）。
+- **SegmentedButton（无对钩）**：`icon = {}` 显式去掉默认对钩，选中态仅 tonal 底 + 描边强调；label 强制单行（`maxLines = 1, softWrap = false`），超宽省略号。用于双路线切换与自由煲机时长预设（`ui/burnin/BurnInIdleContent.kt` `ModeSwitchRow`/`PresetHoursRow`）、主题模式与语言三选一（`ui/settings/SettingsTab.kt` `LanguageRow`）。
 - **方案卡（PlanCard）**：整卡可点；圆角 16dp；未选中 1dp `outlineVariant` 描边 + `surfaceContainerLowest` 底，选中 2dp `primary` 描边 + `surfaceContainerLow` 底，描边颜色 `animateColorAsState` ease-out 过渡；卡头 3×20dp 主色竖条随选中强调；卡内开始按钮全宽 44dp（`ui/burnin/BurnInIdleContent.kt` `PlanCard`/`CardHeader`/`CardStartButton`）。
 - **步进器**：40dp 圆形 OutlinedIconButton（内置图标 20dp）夹 160×48dp 居中数字输入框，按钮与输入框间距 12dp；到边界按钮禁用；−/+ 步进做 160ms 数值淡入（`ui/burnin/BurnInIdleContent.kt` `HoursStepperRow`/`StepperIconButton`/`CompactNumberField`）。
 - **紧凑数字输入框（CompactNumberField）**：48dp 高、12dp 圆角、1dp 细描边（错误态描边变 `error` 色）；数字与行尾单位小字整体居中；数字键盘单行；空值显示占位（`ui/burnin/BurnInIdleContent.kt` `CompactNumberField`）。

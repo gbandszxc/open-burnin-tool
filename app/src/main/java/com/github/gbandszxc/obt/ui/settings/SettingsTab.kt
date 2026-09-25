@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.gbandszxc.obt.BuildConfig
 import com.github.gbandszxc.obt.R
@@ -124,7 +125,12 @@ fun SettingsTab(
                     // 选中态仅靠 tonal 底色与描边强调，显式传空 icon 去掉默认对钩，避免文字被挤向右侧
                     icon = {},
                 ) {
-                    Text(label)
+                    Text(
+                        label,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
@@ -199,7 +205,12 @@ private fun LanguageRow(
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = languages.size),
                 icon = {},
             ) {
-                Text(label)
+                Text(
+                    label,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
