@@ -9,7 +9,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.github.gbandszxc.obt.BurnInApplication
 import com.github.gbandszxc.obt.data.BurnInRepository
 import com.github.gbandszxc.obt.data.BurnInSession
+import com.github.gbandszxc.obt.data.DEFAULT_PLAN_STAGE_ORDER
 import com.github.gbandszxc.obt.data.LocalTrack
+import com.github.gbandszxc.obt.data.SettingsRepository
 import com.github.gbandszxc.obt.data.TrackRepository
 import com.github.gbandszxc.obt.domain.model.BurnPlan
 import com.github.gbandszxc.obt.domain.model.BurnPlans
@@ -76,10 +78,12 @@ sealed interface TrackImportResult {
 }
 
 /**
- * 煲机页未开始态的配置状态聚合：模式、方案卡、自定义输入、自由音效、本地音轨列表、
- * 导入进度与可续播会话。全部由 [BurnInViewModel] 单向驱动，UI 只读并上抛事件。
+ * 煲机页未开始态的配置状态聚合：模式、方案卡、自定义输入、方案阶段编排配置
+ * （顺序/响度覆盖/稳定阶段音乐）、自由音效、本地音轨列表、导入进度与可续播会话。
+ * 全部由 [BurnInViewModel] 单向驱动，UI 只读并上抛事件。
  *
- * 派生属性（小时数解析/校验）在此层收敛，保证 UI 与开始入口使用同一套校验口径。
+ * 派生属性（小时数解析/校验、生效稳定歌单）在此层收敛，保证 UI 与开始入口使用同一套口径；
+ * 方案组装纯函数见 [buildStagePlan]。
  */
 data class BurnInUiState(
     val mode: BurnMode = BurnMode.PLAN,
@@ -87,6 +91,26 @@ data class BurnInUiState(
 
     /** 方案煲机「自定义四阶段」的总时长输入（纯数字字符串，空串表示未填）。 */
     val planCustomHoursInput: String = DEFAULT_PLAN_CUSTOM_HOURS.toString(),
+
+    /**
+     * 方案煲机四阶段播放顺序（stageId 的全排列，0=舒缓 / 1=适应 / 2=稳定 / 3=轮换），
+     * 作用于经典与自定义方案。
+     * 缺省 [com.github.gbandszxc.obt.data.DEFAULT_PLAN_STAGE_ORDER]（0 舒缓 → 1 适应 → 2 稳定 → 3 轮换）。
+     * 单一数据源口径：本字段由设置流回流写入，见 [BurnInViewModel] 的 set 方法约定。
+     */
+    val stageOrder: List<Int> = DEFAULT_PLAN_STAGE_ORDER,
+
+    /**
+     * 四阶段响度覆盖（stageId → 比例，(0, 1]），作用于经典与自定义方案。
+     * 空 map 表示未覆盖，UI 显示各阶段默认比例（1/5、1/3、7/15、3/5）。
+     */
+    val stageGains: Map<Int, Double> = emptyMap(),
+
+    /** 稳定阶段（stageId = 2）音乐替换开关；仅与非空生效歌单组合才真正生效（见 [steadyMusicEffective]）。 */
+    val steadyMusicEnabled: Boolean = false,
+
+    /** 稳定阶段替换曲目的有序 id 列表（勾选顺序 = 播放顺序），可能包含已失效 id，用前先看派生字段。 */
+    val steadyTrackIds: List<Long> = emptyList(),
 
     /** 当前选中方案的可续播会话（RUNNING/PAUSED 且已有进度）；无则 null。 */
     val resumableSession: BurnInSession? = null,
@@ -136,6 +160,21 @@ data class BurnInUiState(
     /** 自由煲机是否可开始（自定义输入合法或未填）。 */
     val canStartFree: Boolean get() = !freeCustomInputError
 
+    /**
+     * 稳定阶段音乐实际生效的歌单：开关开启时取 [steadyTrackIds] 与 [tracks] 的交集
+     * （保序、去重，剔除已失效 id），关闭时恒为空列表。
+     */
+    val effectiveSteadyTrackIds: List<Long>
+        get() = if (!steadyMusicEnabled) {
+            emptyList()
+        } else {
+            steadyTrackIds.filter { id -> tracks.any { it.id == id } }.distinct()
+        }
+
+    /** 稳定阶段音乐替换是否生效：开关开启且生效歌单非空；否则回退粉噪恒定。 */
+    val steadyMusicEffective: Boolean
+        get() = steadyMusicEnabled && effectiveSteadyTrackIds.isNotEmpty()
+
     companion object {
 
         /** 方案自定义小时数合法范围。 */
@@ -155,6 +194,39 @@ data class BurnInUiState(
 
         /** 输入框允许的最大数字位数（999 上限即 3 位）。 */
         const val MAX_INPUT_DIGITS = 3
+
+        /**
+         * 按当前阶段编排配置组装方案煲机方案（经典与自定义共用），纯函数、JVM 可测。
+         *
+         * 组装链固定：先经工厂做稳定阶段音乐注入（[BurnPlans.classic] / [BurnPlans.custom]，
+         * [steadyEnabled] 且 [steadyTrackIds] 非空才传入歌单，否则空列表 = 缺省粉噪恒定），
+         * 再 [BurnPlan.withStageOrder] 重排播放顺序，最后 [BurnPlan.withStageGains] 按身份覆盖响度
+         * （后两步均按 stageId 定位，与注入互不干扰）。
+         *
+         * @param hours 自定义方案总时长（[classic] = false 时必须非空且 > 0；经典方案忽略）。
+         * @param classic true 走经典标准四阶段（id 固定 classic_120h），false 走自定义四阶段。
+         * @param stageOrder stageId 全排列（缺省传 0,1,2,3 即与现行为等价）；非法排列由
+         *   [BurnPlan.withStageOrder] 拒绝（调用方入口已按 [com.github.gbandszxc.obt.data.parseStageOrder]
+         *   同口径校验）。
+         * @param stageGains 响度覆盖（值域 (0, 1]，越界由 [BurnPlan.withStageGains] 拒绝）。
+         */
+        fun buildStagePlan(
+            hours: Int?,
+            classic: Boolean,
+            stageOrder: List<Int>,
+            stageGains: Map<Int, Double>,
+            steadyEnabled: Boolean,
+            steadyTrackIds: List<Long>,
+        ): BurnPlan {
+            // 稳定阶段音乐：开关开且歌单非空才注入；否则空列表保持粉噪恒定（缺省形态）
+            val effectiveIds = if (steadyEnabled && steadyTrackIds.isNotEmpty()) steadyTrackIds else emptyList()
+            val base = if (classic) {
+                BurnPlans.classic(effectiveIds)
+            } else {
+                BurnPlans.custom(requireNotNull(hours) { "自定义方案组装必须提供小时数" }, effectiveIds)
+            }
+            return base.withStageOrder(stageOrder).withStageGains(stageGains)
+        }
     }
 }
 
@@ -164,12 +236,18 @@ data class BurnInUiState(
  * 控制器持有全部播放逻辑与状态（Application 单例，存活于 Activity 之外），
  * 播放控制只做转发，保证旋转/重建期间会话状态不丢；本类额外收敛煲机页全部未开始态配置：
  * 模式切换、方案卡与自定义小时输入、自由音效选择、本地音轨列表与导入/删除、
- * 选中方案的可续播会话查询（选中方案变化或播放回到空闲时自动刷新）。
+ * 选中方案的可续播会话查询（选中方案变化或播放回到空闲时自动刷新），
+ * 以及方案阶段编排配置（阶段顺序/响度覆盖/稳定阶段音乐，持久化于
+ * [SettingsRepository]，经 DataStore 流回流驱动 uiState）。
+ *
+ * 单一数据源口径：阶段编排配置的 set 方法只持久化到 DataStore，**不直接改 uiState**；
+ * 状态统一由对应 flow 回流写入（init 内收集器），避免「先改状态再持久化失败」的双写竞态。
  */
 class BurnInViewModel(
     private val controller: PlaybackController,
     private val burnInRepository: BurnInRepository,
     private val trackRepository: TrackRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     /** 播放状态（已煲/剩余/暂停等），每秒刷新。 */
@@ -186,9 +264,11 @@ class BurnInViewModel(
     val importEvents: SharedFlow<TrackImportResult> = _importEvents.asSharedFlow()
 
     init {
-        // 本地音轨列表随 Room 流刷新；当前选中的本地曲目被移除时回退默认白噪，避免悬挂选择
+        // 本地音轨列表随 Room 流刷新；当前选中的本地曲目被移除时回退默认白噪，避免悬挂选择；
+        // 同时修剪持久化的稳定阶段歌单（用户删除曲目后自动清理失效 id，见 pruneSteadyTrackIds）
         viewModelScope.launch {
             trackRepository.tracks.collect { tracks ->
+                pruneSteadyTrackIds(tracks)
                 _uiState.update { state ->
                     val sound = state.freeSound
                     val safeSound = if (
@@ -202,6 +282,30 @@ class BurnInViewModel(
                     state.copy(tracks = tracks, freeSound = safeSound)
                 }
             }
+        }
+        // 方案阶段编排配置（顺序/响度覆盖/稳定阶段音乐开关/歌单）随 DataStore 流回流：
+        // 单一数据源 —— set 方法只持久化，不直接改 uiState，状态统一由本收集器写入。
+        // 四字段先合成快照再整体去重，避免多字段连续变更时对 uiState 的重复覆盖。
+        viewModelScope.launch {
+            combine(
+                settingsRepository.planStageOrder,
+                settingsRepository.planStageGains,
+                settingsRepository.planSteadyMusicEnabled,
+                settingsRepository.planSteadyTrackIds,
+            ) { order, gains, enabled, trackIds ->
+                StageConfigSnapshot(order, gains, enabled, trackIds)
+            }
+                .distinctUntilChanged()
+                .collect { snapshot ->
+                    _uiState.update {
+                        it.copy(
+                            stageOrder = snapshot.stageOrder,
+                            stageGains = snapshot.stageGains,
+                            steadyMusicEnabled = snapshot.steadyMusicEnabled,
+                            steadyTrackIds = snapshot.steadyTrackIds,
+                        )
+                    }
+                }
         }
         // 可续播会话查询：选中方案（planId）或播放回到空闲（会话结束/完成）时刷新；
         // collectLatest 保证快速切换方案时旧查询被取消、只落最后一次结果。
@@ -277,6 +381,67 @@ class BurnInViewModel(
     }
 
     // ------------------------------------------------------------------
+    // 方案阶段编排配置（持久化口径见类 KDoc：只写 DataStore，状态由流回流）
+    // ------------------------------------------------------------------
+
+    /**
+     * 保存方案四阶段播放顺序：[order] 必须是 stageId 0..3 的全排列（与
+     * [com.github.gbandszxc.obt.data.parseStageOrder] 同口径），否则整体忽略不持久化。
+     */
+    fun setStageOrder(order: List<Int>) {
+        if (order.size != DEFAULT_PLAN_STAGE_ORDER.size || order.toSet() != DEFAULT_PLAN_STAGE_ORDER.toSet()) return
+        viewModelScope.launch { settingsRepository.setPlanStageOrder(order) }
+    }
+
+    /**
+     * 覆盖/清除单个阶段的响度比例：[ratio] 非 null 须落在 (0, 1]（含有限性校验），
+     * null 表示清除该阶段覆盖（从覆盖表去掉后持久化剩余项）；stageId 越界或取值非法
+     * 或结果与当前一致时忽略，不产生多余写入。
+     */
+    fun setStageGain(stageId: Int, ratio: Double?) {
+        val next = _uiState.value.stageGains.toMutableMap()
+        if (ratio == null) {
+            if (next.remove(stageId) == null) return
+        } else {
+            if (stageId !in DEFAULT_PLAN_STAGE_ORDER) return
+            if (!ratio.isFinite() || ratio <= 0.0 || ratio > 1.0) return
+            if (next[stageId] == ratio) return
+            next[stageId] = ratio
+        }
+        viewModelScope.launch { settingsRepository.setPlanStageGains(next) }
+    }
+
+    /** 保存稳定阶段音乐替换开关（配合非空生效歌单才真正生效，见 [BurnInUiState.steadyMusicEffective]）。 */
+    fun setSteadyMusicEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setPlanSteadyMusicEnabled(enabled) }
+    }
+
+    /**
+     * 切换稳定阶段歌单里某首曲目的勾选状态：已含则移除，未含则追加到末尾
+     * （勾选顺序 = 播放顺序），持久化后由设置流回流。
+     */
+    fun toggleSteadyTrack(trackId: Long) {
+        val current = _uiState.value.steadyTrackIds
+        val next = if (current.contains(trackId)) current - trackId else current + trackId
+        viewModelScope.launch { settingsRepository.setPlanSteadyTrackIds(next) }
+    }
+
+    /**
+     * 修剪稳定阶段歌单中已失效（被用户删除）的曲目 id 并持久化，只发一次：
+     * 与当前 uiState 比对无变化不写。修剪后歌单为空且开关仍开启时，一并持久化
+     * 关闭开关（回退粉噪恒定），其余配置记忆语义不受影响。
+     */
+    private suspend fun pruneSteadyTrackIds(tracks: List<LocalTrack>) {
+        val state = _uiState.value
+        val kept = state.steadyTrackIds.filter { id -> tracks.any { it.id == id } }
+        if (kept.size == state.steadyTrackIds.size) return
+        settingsRepository.setPlanSteadyTrackIds(kept)
+        if (state.steadyMusicEnabled && kept.isEmpty()) {
+            settingsRepository.setPlanSteadyMusicEnabled(false)
+        }
+    }
+
+    // ------------------------------------------------------------------
     // 开始入口
     // ------------------------------------------------------------------
 
@@ -291,6 +456,39 @@ class BurnInViewModel(
         } else {
             controller.start(plan)
         }
+    }
+
+    /**
+     * 开始经典标准四阶段方案：按当前阶段编排配置（顺序/响度覆盖/稳定阶段音乐）
+     * 经 [BurnInUiState.buildStagePlan] 组装后走 [startPlan]。
+     *
+     * 续播语义：[resumeFromSeconds] 非空且大于 0 时从该已完成秒数续播；续播同样按
+     * **当前配置**重建方案（编排配置变更后续播沿用新顺序/响度/歌单，记忆语义）。
+     * 方案 id 不随编排变化（classic_120h），续播会话匹配口径不受影响。
+     */
+    fun startClassicPlan(resumeFromSeconds: Long? = null) {
+        startPlan(buildCurrentStagePlan(classic = true), resumeFromSeconds)
+    }
+
+    /**
+     * 开始自定义四阶段方案：[hours] 为总时长（调用方传入已校验的合法值，24-240），
+     * 其余组装与续播语义同 [startClassicPlan]。
+     */
+    fun startCustomPlan(hours: Int, resumeFromSeconds: Long? = null) {
+        startPlan(buildCurrentStagePlan(classic = false, hours = hours), resumeFromSeconds)
+    }
+
+    /** 读当前 uiState 组装本帧的方案煲机方案（稳定阶段歌单取派生的失效剔除后交集）。 */
+    private fun buildCurrentStagePlan(classic: Boolean, hours: Int? = null): BurnPlan {
+        val state = _uiState.value
+        return BurnInUiState.buildStagePlan(
+            hours = hours,
+            classic = classic,
+            stageOrder = state.stageOrder,
+            stageGains = state.stageGains,
+            steadyEnabled = state.steadyMusicEnabled,
+            steadyTrackIds = state.effectiveSteadyTrackIds,
+        )
     }
 
     /** 开始自由煲机：按当前音效选择与生效时长组装单阶段方案（[BurnPlans.quick]）。 */
@@ -321,9 +519,7 @@ class BurnInViewModel(
     fun importTrack(uri: Uri) {
         if (_uiState.value.importing) return
         viewModelScope.launch {
-            _uiState.update { it.copy(importing = true) }
-            val track = runCatching { trackRepository.importFromUri(uri) }.getOrNull()
-            _uiState.update { it.copy(importing = false) }
+            val track = importTrackInternal(uri)
             if (track != null) {
                 // 导入即选中，衔接「导入 → 出现在下拉 → 可直接开始」链路
                 setFreeSound(FreeSoundSelection.LocalMusic(track))
@@ -332,6 +528,33 @@ class BurnInViewModel(
                 _importEvents.tryEmit(TrackImportResult.Failure)
             }
         }
+    }
+
+    /**
+     * 从内容 [Uri] 导入本地音乐并加入稳定阶段歌单：复用 [importTrack] 的导入链路与
+     * importing 态，但成功后**不改**自由煲机音效，而是把新曲目 id 追加到稳定阶段歌单末尾
+     * （勾选顺序 = 播放顺序）并持久化；失败照旧发出 [TrackImportResult.Failure]。
+     * 导入进行中重复调用忽略。
+     */
+    fun importSteadyTrack(uri: Uri) {
+        if (_uiState.value.importing) return
+        viewModelScope.launch {
+            val track = importTrackInternal(uri)
+            if (track != null) {
+                settingsRepository.setPlanSteadyTrackIds(_uiState.value.steadyTrackIds + track.id)
+                _importEvents.tryEmit(TrackImportResult.Success(track.displayName))
+            } else {
+                _importEvents.tryEmit(TrackImportResult.Failure)
+            }
+        }
+    }
+
+    /** 导入公共链路：置 importing 态、仓库层拷贝（异常兜底为 null）、复位 importing。 */
+    private suspend fun importTrackInternal(uri: Uri): LocalTrack? {
+        _uiState.update { it.copy(importing = true) }
+        val track = runCatching { trackRepository.importFromUri(uri) }.getOrNull()
+        _uiState.update { it.copy(importing = false) }
+        return track
     }
 
     /** 移除本地音乐（删除私有目录文件 + 删除 Room 记录，仓库层兜底不抛出）。 */
@@ -362,8 +585,20 @@ class BurnInViewModel(
                     controller = container.playbackController,
                     burnInRepository = container.burnInRepository,
                     trackRepository = container.trackRepository,
+                    settingsRepository = container.settingsRepository,
                 )
             }
         }
     }
 }
+
+/**
+ * 方案阶段编排配置四元组快照：combine 中转值，整体去重（数据类相等比较）后
+ * 统一回流写入 [BurnInUiState] 的对应字段，避免多字段连续变更时的重复覆盖。
+ */
+private data class StageConfigSnapshot(
+    val stageOrder: List<Int>,
+    val stageGains: Map<Int, Double>,
+    val steadyMusicEnabled: Boolean,
+    val steadyTrackIds: List<Long>,
+)
