@@ -73,4 +73,4 @@
 ## 打包分发
 
 - APK 按 ABI 分包：`armeabi-v7a` 与 `arm64-v8a` 两档，不产 universal 包（`app/build.gradle.kts` 的 `splits.abi`）。
-- 产物命名：`burn-in-tool-v<版本号>-<abi>-<debug|release>.apk`（如 `burn-in-tool-v1.5.0-arm64-v8a-release.apk`），版本号由 `appVersionName` 单一来源驱动（`androidComponents.onVariants` 注入）。
+- 产物命名：`open-burnin-tool-v<版本号>-<abi>-<debug|release>.apk`（如 `open-burnin-tool-v1.5.0-arm64-v8a-release.apk`），版本号由 `appVersionName` 单一来源驱动（`androidComponents.onVariants` 注入）。

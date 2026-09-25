@@ -93,10 +93,10 @@ Requirements: JDK 17 and the Android SDK (API 36).
 APKs are split by ABI (`armeabi-v7a` / `arm64-v8a`, no universal APK) and named:
 
 ```
-burn-in-tool-v<version>-<abi>-<debug|release>.apk
+open-burnin-tool-v<version>-<abi>-<debug|release>.apk
 ```
 
-for example `burn-in-tool-v1.5.0-arm64-v8a-release.apk` and `burn-in-tool-v1.5.0-armeabi-v7a-debug.apk`.
+for example `open-burnin-tool-v1.5.0-arm64-v8a-release.apk` and `open-burnin-tool-v1.5.0-armeabi-v7a-debug.apk`.
 
 ## Project layout
 
