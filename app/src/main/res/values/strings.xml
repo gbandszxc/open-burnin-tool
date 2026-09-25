@@ -52,6 +52,26 @@
     <string name="dialog_remove_track_body">The import record of “%1$s” and the in-app copy will be removed from Burn-in Tool; your original audio file will not be deleted. Only the import record is unrecoverable.</string>
     <string name="btn_remove">Remove</string>
 
+    <!-- 煲机页 · 阶段编排配置区 -->
+    <string name="stage_arrangement_title">Phase arrangement</string>
+    <string name="stage_arrangement_info_body">These settings apply to both the standard and the custom 4-phase plan. Long-press and drag a row to change the playback order; tap the percentage on a row to adjust that phase loudness; the steady phase can optionally play local music instead of steady pink noise. Changes are saved immediately and take effect the next time a plan starts or resumes.</string>
+    <string name="cd_stage_drag_handle">Long-press and drag to reorder “%1$s”</string>
+    <string name="stage_position_fmt">Position %1$d</string>
+    <string name="stage_source_alternate_fmt">%1$s ⇄ %2$s</string>
+    <string name="steady_source_music_fmt">Music · %1$d track(s)</string>
+    <string name="cd_stage_loudness">Adjust “%1$s” loudness</string>
+    <string name="loudness_dialog_title_fmt">Adjust “%1$s” loudness</string>
+    <string name="loudness_input_label">Loudness percentage</string>
+    <string name="cd_loudness_input">Enter loudness percentage</string>
+    <string name="unit_percent">%</string>
+    <string name="loudness_range_error">Enter a whole number between 1 and 100</string>
+    <string name="btn_confirm">OK</string>
+    <string name="loudness_reset_default">Reset to default</string>
+    <string name="steady_mode_noise">Steady pink noise</string>
+    <string name="steady_mode_music">Music</string>
+    <string name="steady_empty_hint">Check or import at least one track, otherwise this phase plays steady pink noise</string>
+    <string name="cd_steady_toggle_track">Check or uncheck “%1$s”</string>
+
     <!-- 煲机页 · 播放态 -->
     <string name="remaining_fmt">%1$s left</string>
     <string name="status_paused_fmt">Paused · %1$s</string>

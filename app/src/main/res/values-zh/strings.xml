@@ -51,6 +51,26 @@
     <string name="dialog_remove_track_body">将移除「%1$s」在煲机助手中的导入记录与应用内副本，不会删除你的原始音频文件。无法恢复的是导入记录。</string>
     <string name="btn_remove">移除</string>
 
+    <!-- 煲机页 · 阶段编排配置区 -->
+    <string name="stage_arrangement_title">阶段编排</string>
+    <string name="stage_arrangement_info_body">此处的配置同时作用于标准与自定义四阶段方案：长按拖动行可调整播放顺序；点击行尾百分比可调整该阶段响度；稳定阶段可选本地音乐替换粉噪恒定。配置即时保存，并在下次开始或续播时生效。</string>
+    <string name="cd_stage_drag_handle">长按拖动调整「%1$s」的顺序</string>
+    <string name="stage_position_fmt">第 %1$d 位</string>
+    <string name="stage_source_alternate_fmt">%1$s ⇄ %2$s</string>
+    <string name="steady_source_music_fmt">音乐 · %1$d 首</string>
+    <string name="cd_stage_loudness">调整「%1$s」响度</string>
+    <string name="loudness_dialog_title_fmt">调整「%1$s」响度</string>
+    <string name="loudness_input_label">响度百分比</string>
+    <string name="cd_loudness_input">输入响度百分比</string>
+    <string name="unit_percent">%</string>
+    <string name="loudness_range_error">请输入 1-100 的整数</string>
+    <string name="btn_confirm">确定</string>
+    <string name="loudness_reset_default">恢复默认</string>
+    <string name="steady_mode_noise">粉噪恒定</string>
+    <string name="steady_mode_music">音乐</string>
+    <string name="steady_empty_hint">勾选或导入至少一首曲目，否则该阶段按粉噪恒定播放</string>
+    <string name="cd_steady_toggle_track">勾选或取消勾选「%1$s」</string>
+
     <!-- 煲机页 · 播放态 -->
     <string name="remaining_fmt">剩余 %1$s</string>
     <string name="status_paused_fmt">已暂停 · %1$s</string>

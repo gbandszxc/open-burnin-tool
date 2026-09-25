@@ -36,7 +36,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +45,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,7 +69,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.gbandszxc.obt.R
 import com.github.gbandszxc.obt.data.LocalTrack
-import com.github.gbandszxc.obt.domain.model.BurnPlan
 import com.github.gbandszxc.obt.domain.model.BurnPlans
 import com.github.gbandszxc.obt.playback.BurnInUiState
 import com.github.gbandszxc.obt.playback.BurnMode
@@ -112,6 +109,7 @@ private fun easeOutColorSpec(): FiniteAnimationSpec<Color> =
  * │   总时长                    │
  * │   (−)  [ 48 小时 ]  (+)    │ ← 40dp 圆形步进 + 160×48 输入框
  * │         [ ▶ 开始煲机 ]      │
+ * │ ▍阶段编排 ⓘ            [卡] │ ← 四行拖拽排序 + 响度徽标 + 稳定阶段音乐
  * │（自由煲机态）                │
  * │ 煲机音效 [ 白噪音      ▼ ]   │ ← 分组下拉：内置音效/本地音乐/导入
  * │ 煲机时长 [2h|8h|16h|…]      │
@@ -131,7 +129,13 @@ internal fun IdleContent(
     onPlanCardChange: (PlanCard) -> Unit,
     onPlanCustomHoursChange: (String) -> Unit,
     onStepPlanCustomHours: (Int) -> Unit,
-    onStartPlan: (BurnPlan, Long?) -> Unit,
+    onStartClassic: (Long?) -> Unit,
+    onStartCustom: (Int) -> Unit,
+    onStageOrderChange: (List<Int>) -> Unit,
+    onStageGainChange: (Int, Double?) -> Unit,
+    onSteadyMusicEnabledChange: (Boolean) -> Unit,
+    onToggleSteadyTrack: (Long) -> Unit,
+    onImportSteadyTrack: (Uri) -> Unit,
     onFreeSoundChange: (FreeSoundSelection) -> Unit,
     onFreePresetHoursChange: (Int) -> Unit,
     onFreeCustomHoursChange: (String) -> Unit,
@@ -178,7 +182,14 @@ internal fun IdleContent(
                 onPlanCardChange = onPlanCardChange,
                 onPlanCustomHoursChange = onPlanCustomHoursChange,
                 onStepPlanCustomHours = onStepPlanCustomHours,
-                onStartPlan = onStartPlan,
+                onStartClassic = onStartClassic,
+                onStartCustom = onStartCustom,
+                onStageOrderChange = onStageOrderChange,
+                onStageGainChange = onStageGainChange,
+                onSteadyMusicEnabledChange = onSteadyMusicEnabledChange,
+                onToggleSteadyTrack = onToggleSteadyTrack,
+                onImportSteadyTrack = onImportSteadyTrack,
+                onDeleteTrack = onDeleteTrack,
             )
             BurnMode.FREE -> FreeModeContent(
                 uiState = uiState,
@@ -234,8 +245,9 @@ private fun ModeSwitchRow(mode: BurnMode, onModeChange: (BurnMode) -> Unit) {
 // ------------------------------------------------------------------
 
 /**
- * 方案煲机配置区：标准四阶段卡（含续播入口）+ 自定义四阶段卡（总时长步进输入）。
- * 卡片展示标题走 UI 层的 [displayTitle]，不再读取播放层枚举自带的旧文案。
+ * 方案煲机配置区：标准四阶段卡（含续播入口）+ 自定义四阶段卡（总时长步进输入）
+ * + 阶段编排配置区（顺序/响度/稳定阶段音乐，见 [StageArrangementSection]）。
+ * 卡片展示标题走 UI 层的 [planCardTitle]，不再读取播放层枚举自带的旧文案。
  */
 @Composable
 private fun PlanModeContent(
@@ -243,7 +255,14 @@ private fun PlanModeContent(
     onPlanCardChange: (PlanCard) -> Unit,
     onPlanCustomHoursChange: (String) -> Unit,
     onStepPlanCustomHours: (Int) -> Unit,
-    onStartPlan: (BurnPlan, Long?) -> Unit,
+    onStartClassic: (Long?) -> Unit,
+    onStartCustom: (Int) -> Unit,
+    onStageOrderChange: (List<Int>) -> Unit,
+    onStageGainChange: (Int, Double?) -> Unit,
+    onSteadyMusicEnabledChange: (Boolean) -> Unit,
+    onToggleSteadyTrack: (Long) -> Unit,
+    onImportSteadyTrack: (Uri) -> Unit,
+    onDeleteTrack: (LocalTrack) -> Unit,
 ) {
     val classicSelected = uiState.planCard == PlanCard.CLASSIC
     val crossDayTemplate = stringResource(R.string.duration_cross_day_fmt)
@@ -275,7 +294,7 @@ private fun PlanModeContent(
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = { onStartPlan(BurnPlans.CLASSIC, resumable.completedSeconds) },
+                    onClick = { onStartClassic(resumable.completedSeconds) },
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp),
@@ -283,7 +302,7 @@ private fun PlanModeContent(
                     Text(stringResource(R.string.btn_resume), style = MaterialTheme.typography.labelLarge)
                 }
                 OutlinedButton(
-                    onClick = { onStartPlan(BurnPlans.CLASSIC, null) },
+                    onClick = { onStartClassic(null) },
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp),
@@ -292,7 +311,7 @@ private fun PlanModeContent(
                 }
             }
         } else {
-            CardStartButton(onClick = { onStartPlan(BurnPlans.CLASSIC, null) })
+            CardStartButton(onClick = { onStartClassic(null) })
         }
     }
 
@@ -339,9 +358,22 @@ private fun PlanModeContent(
         Spacer(Modifier.height(14.dp))
         CardStartButton(
             enabled = customHours != null,
-            onClick = { onStartPlan(BurnPlans.custom(customHours ?: 0), null) },
+            onClick = { customHours?.let(onStartCustom) },
         )
     }
+
+    Spacer(Modifier.height(12.dp))
+
+    // 阶段编排配置区：顺序/响度/稳定阶段音乐，作用于经典与自定义两张卡
+    StageArrangementSection(
+        uiState = uiState,
+        onStageOrderChange = onStageOrderChange,
+        onStageGainChange = onStageGainChange,
+        onSteadyMusicEnabledChange = onSteadyMusicEnabledChange,
+        onToggleSteadyTrack = onToggleSteadyTrack,
+        onImportSteadyTrack = onImportSteadyTrack,
+        onDeleteTrack = onDeleteTrack,
+    )
 }
 
 /** 两张方案卡的展示标题（UI 层按资源解析，与 [BurnPlans.CLASSIC] 的方案口径一致）。 */
@@ -626,27 +658,15 @@ private fun FreeModeContent(
     }
 
     pendingDeleteTrack?.let { track ->
-        AlertDialog(
-            onDismissRequest = { pendingDeleteTrack = null },
-            title = { Text(stringResource(R.string.dialog_remove_track_title)) },
-            // 只删应用私有目录（filesDir/burn_music/）下的副本与导入记录，源文件不受影响，
-            // 文案必须如实说明，避免用户误以为原始音频文件会被删除
-            text = {
-                Text(
-                    stringResource(R.string.dialog_remove_track_body, track.displayName),
-                )
+        // 确认弹窗与稳定阶段歌单共用同一形态（见 StageArrangementSection.kt TrackRemoveConfirmDialog）：
+        // 只删应用私有目录（filesDir/burn_music/）下的副本与导入记录，源文件不受影响
+        TrackRemoveConfirmDialog(
+            track = track,
+            onConfirm = {
+                pendingDeleteTrack = null
+                onDeleteTrack(track)
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingDeleteTrack = null
-                        onDeleteTrack(track)
-                    },
-                ) { Text(stringResource(R.string.btn_remove)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteTrack = null }) { Text(stringResource(R.string.btn_cancel)) }
-            },
+            onDismiss = { pendingDeleteTrack = null },
         )
     }
 }
@@ -691,12 +711,12 @@ private fun FieldLabel(text: String) {
 
 /**
  * 紧凑数字输入框：48dp 细描边圆角行，数字与行尾单位小字（[suffixText]）整体居中；
- * 数字键盘、单行；空值时显示 [hint] 占位；点整行即可聚焦输入。
- * [contentAlpha] 供步进反馈做淡入；数字过滤与长度截断在 ViewModel 侧收敛，这里只做展示与上抛。
- * [suffixText] 为行尾单位词（如「小时」），由调用点按当前语言传入（默认参数无法引用资源）。
+ * 数字键盘、单行；空值时显示 [hint] 占位；点整行即可聚焦输入（无障碍动作名 [onClickLabel]）。
+ * [contentAlpha] 供步进反馈做淡入；数字过滤与长度截断由调用侧收敛，这里只做展示与上抛。
+ * [suffixText] 为行尾单位词（如「小时」），由调用点按当前语言传入；internal 供响度编辑对话框复用。
  */
 @Composable
-private fun CompactNumberField(
+internal fun CompactNumberField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -704,6 +724,7 @@ private fun CompactNumberField(
     hint: String = "",
     isError: Boolean = false,
     contentAlpha: Float = 1f,
+    onClickLabel: String = stringResource(R.string.cd_input_hours),
 ) {
     val shape = RoundedCornerShape(12.dp)
     val borderColor by animateColorAsState(
@@ -726,7 +747,7 @@ private fun CompactNumberField(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClickLabel = stringResource(R.string.cd_input_hours),
+                onClickLabel = onClickLabel,
             ) { focusRequester.requestFocus() }
             .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.Center,
