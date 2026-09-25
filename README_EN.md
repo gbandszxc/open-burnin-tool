@@ -5,7 +5,7 @@
 <h1 align="center">Burn-in Tool</h1>
 
 <p align="center">
-  An Android headphone burn-in tool. Play noise, frequency sweeps or your own music to help a new headphone's diaphragm settle faster. Fully offline except for checking for and downloading updates, which fetch public GitHub pages anonymously; no account required, free and open source.
+  An Android headphone burn-in tool. Play noise, frequency sweeps or your own music to help a new headphone's diaphragm settle faster.
 </p>
 
 <p align="center">
@@ -23,7 +23,6 @@
 | Plan burn-in | Free burn-in |
 | :---: | :---: |
 | <img src="docs/screenshots/home_plan_en.jpg" width="320" alt="Burn-in Tool UI · English · Plan burn-in"> | <img src="docs/screenshots/home_free_en.jpg" width="320" alt="Burn-in Tool UI · English · Free burn-in"> |
-| <img src="docs/screenshots/home_plan.jpg" width="320" alt="煲机助手界面 · 简体中文 · 方案煲机"> | <img src="docs/screenshots/home_free.jpg" width="320" alt="煲机助手界面 · 简体中文 · 自由煲机"> |
 
 <p align="center"><sub>Top row: English UI · Bottom row: Simplified Chinese UI. Left column: Plan burn-in · Right column: Free burn-in.</sub></p>
 
@@ -31,7 +30,7 @@
 
 Burn-in Tool offers two routes: plan burn-in and free burn-in. Plan burn-in walks a fixed four-phase sequence for a long session; free burn-in lets you choose the source and duration yourself and stop at any time. Both can play the built-in synthesized sources or music you import from your device. Progress is recorded as you go, and playback continues when the app is in the background.
 
-For how each feature works, its settings and answers to common questions, see the user manual: [docs/MANUAL_EN.md](docs/MANUAL_EN.md). The Simplified Chinese edition is at [docs/MANUAL.md](docs/MANUAL.md).
+For how each feature works, its settings and answers to common questions, see the user manual: [docs/MANUAL_EN.md](docs/MANUAL_EN.md). 
 
 ## Tech stack
 

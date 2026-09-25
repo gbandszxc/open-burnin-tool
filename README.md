@@ -5,7 +5,7 @@
 <h1 align="center">煲机助手 · Burn-in Tool</h1>
 
 <p align="center">
-  安卓耳机煲机工具。播放噪声、扫频或你导入的音乐，帮新耳机的振膜更快进入稳定状态；除检查更新和下载更新包时会匿名访问 GitHub 公开页面外，全程离线，不需要账号，免费开源。
+  安卓耳机煲机工具。播放噪声、扫频或你导入的音乐，帮新耳机的振膜更快进入稳定状态；
 </p>
 
 <p align="center">
@@ -23,7 +23,6 @@
 | 方案煲机 | 自由煲机 |
 | :---: | :---: |
 | <img src="docs/screenshots/home_plan.jpg" width="320" alt="煲机助手界面 · 简体中文 · 方案煲机"> | <img src="docs/screenshots/home_free.jpg" width="320" alt="煲机助手界面 · 简体中文 · 自由煲机"> |
-| <img src="docs/screenshots/home_plan_en.jpg" width="320" alt="Burn-in Tool UI · English · Plan burn-in"> | <img src="docs/screenshots/home_free_en.jpg" width="320" alt="Burn-in Tool UI · English · Free burn-in"> |
 
 <p align="center"><sub>上排为简体中文界面，下排为英文界面；左列为方案煲机，右列为自由煲机。</sub></p>
 
@@ -31,7 +30,7 @@
 
 煲机助手提供方案煲机和自由煲机两条路线。方案煲机按四阶段固定顺序走完一次长时间煲机；自由煲机自己选音源和时长，随时可停。音源既可以用内置的合成音源，也可以导入本地音乐，播放进度会被记录下来，应用退到后台仍继续煲机。
 
-各功能的具体用法、参数细节和常见问题，见使用手册：[docs/MANUAL.md](docs/MANUAL.md)。英文版手册见 [docs/MANUAL_EN.md](docs/MANUAL_EN.md)。
+各功能的具体用法、参数细节和常见问题，见使用手册：[docs/MANUAL.md](docs/MANUAL.md)。
 
 ## 技术栈
 
