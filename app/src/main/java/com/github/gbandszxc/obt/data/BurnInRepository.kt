@@ -3,6 +3,7 @@ package com.github.gbandszxc.obt.data
 import android.util.Log
 import com.github.gbandszxc.obt.domain.model.BurnPlan
 import com.github.gbandszxc.obt.domain.model.BurnPlans
+import com.github.gbandszxc.obt.domain.model.SoundSource
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -14,6 +15,49 @@ internal fun presetHoursOf(plan: BurnPlan): Int =
 
 /** 秒/小时换算基数。 */
 private const val SECONDS_PER_HOUR: Long = 3_600L
+
+/**
+ * 自由煲机会话的音效快照（会话行 soundSourceId / soundLabel 两列的取值依据）。
+ *
+ * @property sourceId 音效的原版音源编号（[SoundSource.legacySoundId]）；本地音乐音源
+ *   恒为 [SoundSource.LOCAL_TRACK] 的 7，供历史页回显「所用音效」。
+ * @property localTrackId 本地音乐音源时歌单首个曲目 id（内置合成音源为 null）。
+ *   仅作展示层解析线索；展示名由播放层在会话开始时查库解析并快照（见
+ *   [sessionSoundInfo] 的 KDoc），不在此携带，保持本类型为纯派生结果。
+ */
+internal data class SessionSoundInfo(
+    val sourceId: Int,
+    val localTrackId: Long?,
+)
+
+/**
+ * 由方案派生会话应记录的音效快照：仅自由煲机（planId 以 `quick_` 开头，[BurnPlans.quick]
+ * 产出的单阶段方案）非 null；方案煲机（classic_/custom_）返回 null，会话两列保持 null
+ * （历史页不展示音效）。
+ *
+ * 取值语义：
+ * - 阶段 [com.github.gbandszxc.obt.domain.model.BurnPhase.localTrackIds] 非空（本地音乐音源）：
+ *   sourceId = [SoundSource.LOCAL_TRACK] 的 legacySoundId（7），localTrackId = 首个曲目 id；
+ * - 否则（内置合成音源）：sourceId = 阶段音源的 legacySoundId，localTrackId = null。
+ *
+ * 展示名不在此解析：quick 方案是纯领域对象，JVM 可测；曲目展示名由播放层
+ * （PlaybackController.startInternal）在会话开始时经 TrackRepository 查库快照落库——
+ * 曲目之后可能被删除，必须存名字而非只存 id。
+ *
+ * 注意：planId 前缀判定用 `startsWith("quick_")`，与续播匹配的整串正则口径不同——
+ * 此处只区分「自由煲机 / 方案煲机」两族，避免把 classic_120h 等误判为 quick 变体。
+ * 顶层 internal：纯函数无状态，JVM 单测覆盖（见 BurnInRepositoryTest）。
+ */
+internal fun sessionSoundInfo(plan: BurnPlan): SessionSoundInfo? {
+    if (!plan.id.startsWith("quick_")) return null
+    val phase = plan.phases.first()
+    val trackIds = phase.localTrackIds
+    return if (trackIds.isNotEmpty()) {
+        SessionSoundInfo(sourceId = SoundSource.LOCAL_TRACK.legacySoundId, localTrackId = trackIds.first())
+    } else {
+        SessionSoundInfo(sourceId = phase.soundSource.legacySoundId, localTrackId = null)
+    }
+}
 
 /**
  * 煲机数据仓库：会话生命周期与进度落库的唯一入口。
@@ -31,12 +75,19 @@ class BurnInRepository(private val dao: BurnInSessionDao) {
      * 新建并开始一次会话；presetHours 由方案总时长向上取整推导。
      * [initialCompletedSeconds] 为续播起点（方案续播支持）：会话行一开始即写入该已完成秒数，
      * 使其立刻成为可续播记录（续播再次中断后仍能从最新进度继续）。默认 0 保持新建语义。
+     *
+     * 音效快照（自由煲机历史回显）：[soundSourceId] / [soundLabel] 为会话所用音效，
+     * 由调用方（PlaybackController.startInternal）经 [sessionSoundInfo] 派生后传入
+     * （本地音乐音源的展示名也由其查库解析）；默认双 null = 方案煲机 / 旧数据语义，
+     * 既有调用点零改动。
      * 返回自增 id。
      */
     suspend fun startSession(
         plan: BurnPlan,
         startedAtMillis: Long,
         initialCompletedSeconds: Long = 0L,
+        soundSourceId: Int? = null,
+        soundLabel: String? = null,
     ): Long {
         return dao.insert(
             BurnInSession(
@@ -46,6 +97,8 @@ class BurnInRepository(private val dao: BurnInSessionDao) {
                 startedAt = startedAtMillis,
                 lastUpdatedAt = startedAtMillis,
                 status = SessionStatus.RUNNING,
+                soundSourceId = soundSourceId,
+                soundLabel = soundLabel,
             ),
         )
     }

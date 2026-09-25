@@ -21,6 +21,7 @@ import com.github.gbandszxc.obt.data.BurnInRepository
 import com.github.gbandszxc.obt.data.LocalTrack
 import com.github.gbandszxc.obt.data.SessionStatus
 import com.github.gbandszxc.obt.data.TrackRepository
+import com.github.gbandszxc.obt.data.sessionSoundInfo
 import com.github.gbandszxc.obt.domain.logic.BurnProgressEngine
 import com.github.gbandszxc.obt.domain.logic.BurnSequencer
 import com.github.gbandszxc.obt.domain.logic.EngineStatus
@@ -258,9 +259,34 @@ class PlaybackController(
         // 无论「继续」（旧检查点被新会话取代）还是「全新开始」（旧检查点作废），同一方案
         // 至多保留一个可续检查点，避免「已暂停」检查点行无限累积、方案卡长期显示过期「上次进度」
         repository.abandonResumableSessions(plan, startedAtMillis)
+        // 音效快照（自由煲机历史回显）：仅 quick 方案非 null（方案煲机两列保持 null）；
+        // 本地音乐音源在此解析曲目展示名快照——曲目之后可能被删除，必须存名字而非只存 id。
+        // 本次额外一次一次性查库只发生在会话开始，与 createPlayerFor 起播时的查库互不影响
+        //（后者带 unavailable 缓存与失败转试语义，此处解析失败仅 label 置空，不阻断起播）
+        val soundInfo = sessionSoundInfo(plan)
+        var soundSourceId: Int? = null
+        var soundLabel: String? = null
+        if (soundInfo != null) {
+            soundSourceId = soundInfo.sourceId
+            val trackId = soundInfo.localTrackId
+            if (trackId != null) {
+                soundLabel = try {
+                    trackRepository.getById(trackId)?.displayName
+                } catch (t: Throwable) {
+                    Log.w(TAG, "会话音效展示名解析失败（trackId=$trackId），label 置空", t)
+                    null
+                }
+            }
+        }
         val newSessionId = try {
             // 初始 completedSeconds 写入续播起点：新会话行自身即刻成为「可续播」记录
-            repository.startSession(plan, startedAtMillis, initialCompletedSeconds = startAtSeconds)
+            repository.startSession(
+                plan,
+                startedAtMillis,
+                initialCompletedSeconds = startAtSeconds,
+                soundSourceId = soundSourceId,
+                soundLabel = soundLabel,
+            )
         } catch (t: Throwable) {
             Log.e(TAG, "会话落库失败，放弃开始", t)
             _state.value = PlaybackState.IDLE

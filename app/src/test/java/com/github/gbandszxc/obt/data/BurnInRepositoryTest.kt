@@ -1,6 +1,9 @@
 package com.github.gbandszxc.obt.data
 
+import com.github.gbandszxc.obt.domain.model.BurnPhase
+import com.github.gbandszxc.obt.domain.model.BurnPlan
 import com.github.gbandszxc.obt.domain.model.BurnPlans
+import com.github.gbandszxc.obt.domain.model.SoundSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -15,6 +18,10 @@ import org.junit.Test
  * [BurnInRepository] 方案续播查询语义测试（fake DAO 层面：Room DAO 无法 JVM 直测，
  * 用内存版 [BurnInSessionDao] 验证 latestResumableSession 的状态/进度过滤与 planId 匹配，
  * 以及 startSession 把续播起点写入初始 completedSeconds）。
+ *
+ * 另覆盖自由煲机音效快照：纯函数 [sessionSoundInfo] 的方案派生语义
+ * （quick 内置音源 / 本地音乐 / 方案煲机返回 null），以及 startSession 音效
+ * 两列（soundSourceId / soundLabel）带值落库与缺省 null。
  */
 class BurnInRepositoryTest {
 
@@ -231,6 +238,83 @@ class BurnInRepositoryTest {
         repo.startSession(BurnPlans.quick(2), startedAtMillis = 1L, initialCompletedSeconds = -5L)
         repo.startSession(BurnPlans.quick(2), startedAtMillis = 2L, initialCompletedSeconds = 99_999L)
         assertEquals(listOf(0L, 7_200L), dao.rows.map { it.completedSeconds })
+    }
+
+    @Test
+    fun `startSession带音源字段落库`() = runBlocking {
+        val (repo, dao) = repository()
+        // 复刻 PlaybackController.startInternal 的传参口径：本地音乐音源传 LOCAL_TRACK 的
+        // legacySoundId（7）+ 查库解析出的曲目展示名快照
+        val id = repo.startSession(
+            BurnPlans.quick(8),
+            startedAtMillis = 1_000L,
+            soundSourceId = SoundSource.LOCAL_TRACK.legacySoundId,
+            soundLabel = "我的曲目",
+        )
+        val row = dao.rows.first { it.id == id }
+        assertEquals(SoundSource.LOCAL_TRACK.legacySoundId, row.soundSourceId)
+        assertEquals("我的曲目", row.soundLabel)
+    }
+
+    @Test
+    fun `startSession缺省不写音效快照两列为null`() = runBlocking {
+        val (repo, dao) = repository()
+        // 既有调用点零改动：缺省两参 = 方案煲机 / 旧数据语义，落库为 null
+        val id = repo.startSession(BurnPlans.CLASSIC, startedAtMillis = 1_000L)
+        val row = dao.rows.first { it.id == id }
+        assertNull(row.soundSourceId)
+        assertNull(row.soundLabel)
+    }
+
+    // ------------------------------------------------------------------
+    // sessionSoundInfo：自由煲机音效快照派生（纯函数，JVM 直测）
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `quick内置音源方案派生内置音源编号`() {
+        val info = sessionSoundInfo(BurnPlans.quick(8))
+        assertEquals(SoundSource.WHITE_NOISE.legacySoundId, info!!.sourceId)
+        assertNull(info.localTrackId)
+    }
+
+    @Test
+    fun `quick指定合成音源时派生该音源编号`() {
+        val info = sessionSoundInfo(BurnPlans.quick(2, sound = SoundSource.PINK_NOISE))
+        assertEquals(SoundSource.PINK_NOISE.legacySoundId, info!!.sourceId)
+        assertNull(info.localTrackId)
+    }
+
+    @Test
+    fun `quick本地音乐方案派生本地音源与首个曲目id`() {
+        val info = sessionSoundInfo(BurnPlans.quick(8, localTrackIds = listOf(11L, 22L)))
+        assertEquals(SoundSource.LOCAL_TRACK.legacySoundId, info!!.sourceId)
+        assertEquals(11L, info.localTrackId)
+    }
+
+    @Test
+    fun `quick空歌单回退内置音源不误判本地音源`() {
+        val info = sessionSoundInfo(BurnPlans.quick(8, localTrackIds = emptyList()))
+        assertEquals(SoundSource.WHITE_NOISE.legacySoundId, info!!.sourceId)
+        assertNull(info.localTrackId)
+    }
+
+    @Test
+    fun `方案煲机不派生音效快照`() {
+        assertNull(sessionSoundInfo(BurnPlans.CLASSIC))
+        assertNull(sessionSoundInfo(BurnPlans.custom(36)))
+        // classic 稳定阶段单曲注入后 id 仍为 classic_120h（阶段携带本地歌单）也不记录
+        assertNull(sessionSoundInfo(BurnPlans.classic(listOf(5L))))
+    }
+
+    @Test
+    fun `quick_前缀之外的planId不误判`() {
+        // 非常规 planId：以 "quick" 开头但非 "quick_" 前缀的方案不判为自由煲机
+        val plan = BurnPlan(
+            id = "quickish_8h",
+            name = "quickish_8h",
+            phases = listOf(BurnPhase(0, "p", 3_600L, SoundSource.WHITE_NOISE, 0.2, stageId = 0)),
+        )
+        assertNull(sessionSoundInfo(plan))
     }
 
     // ------------------------------------------------------------------

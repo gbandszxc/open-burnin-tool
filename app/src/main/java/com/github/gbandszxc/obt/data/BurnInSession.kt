@@ -36,6 +36,13 @@ class SessionStatusConverter {
  * @property startedAt 开始时间（epoch 毫秒）。
  * @property lastUpdatedAt 最近一次进度/状态更新时间（epoch 毫秒）。
  * @property status 会话状态。
+ * @property soundSourceId 会话所用音效的原版音源编号（[com.github.gbandszxc.obt.domain.model.SoundSource.legacySoundId]，
+ *   本地音乐音源恒为 [com.github.gbandszxc.obt.domain.model.SoundSource.LOCAL_TRACK] 的 7）；
+ *   仅自由煲机（BurnPlans.quick 产出的单阶段方案）会话开始时快照记录，供历史页回显所用音效；
+ *   null = 方案煲机（classic_/custom_）或迁移前的旧数据（不展示音效列）。
+ * @property soundLabel 会话所用音效的展示名快照：内置合成音源不落此列（历史页按
+ *   soundSourceId 解析资源名），仅本地音乐音源记录曲目展示名——曲目之后可能被删除，
+ *   必须存名字而非只存 id；查询失败/曲目缺失时为 null（回退按 soundSourceId 显示占位）。
  */
 @Entity(tableName = "burn_in_sessions")
 data class BurnInSession(
@@ -46,4 +53,6 @@ data class BurnInSession(
     val startedAt: Long,
     val lastUpdatedAt: Long,
     val status: SessionStatus = SessionStatus.RUNNING,
+    val soundSourceId: Int? = null,
+    val soundLabel: String? = null,
 )
