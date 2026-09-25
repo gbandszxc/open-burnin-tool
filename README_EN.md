@@ -1,8 +1,22 @@
-# Burn-in Assistant
+<p align="center">
+  <img src="docs/icon/app-icon.png" alt="Burn-in Tool app icon" width="144">
+</p>
 
-[简体中文](README.md) · **English**
+<h1 align="center">Burn-in Tool</h1>
 
-An Android headphone burn-in tool: it uses scientifically designed sound signals to help a new headphone's diaphragm settle into a stable state faster. Fully offline, no account, free and open source.
+<p align="center">
+  An Android headphone burn-in tool · helps a new headphone's diaphragm settle faster with scientifically designed sound signals · fully offline, no account, free and open source
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84.svg" alt="Requires Android 8.0 or later">
+  <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF.svg" alt="Kotlin + Jetpack Compose">
+</p>
+
+<p align="center"><a href="README.md">简体中文</a> · <b>English</b></p>
+
+---
 
 ## Features
 
@@ -79,10 +93,10 @@ Requirements: JDK 17 and the Android SDK (API 36).
 APKs are split by ABI (`armeabi-v7a` / `arm64-v8a`, no universal APK) and named:
 
 ```
-煲机助手-v<version>-<abi>-<debug|release>.apk
+burn-in-tool-v<version>-<abi>-<debug|release>.apk
 ```
 
-The artifact keeps the Chinese app name regardless of the in-app language, for example `煲机助手-v1.5.0-arm64-v8a-release.apk` and `煲机助手-v1.5.0-armeabi-v7a-debug.apk`.
+for example `burn-in-tool-v1.5.0-arm64-v8a-release.apk` and `burn-in-tool-v1.5.0-armeabi-v7a-debug.apk`.
 
 ## Project layout
 

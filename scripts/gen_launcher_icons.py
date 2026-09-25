@@ -4,6 +4,7 @@
 - ic_launcher.png            传统方图标，mdpi 48 起每档 ×1.5
 - ic_launcher_foreground.png 108dp 画布前景，原图铺满
 - ic_launcher_background.png 108dp 画布背景，原图高斯模糊兜底
+- docs/icon/app-icon.png     双语文档居中展示用图标（raw.png 缩放版，勿直接用 raw.png，1.8 MB）
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from PIL import Image, ImageFilter
 REPO = Path(__file__).resolve().parent.parent
 SRC = REPO / "docs/icon/raw.png"
 RES = REPO / "app/src/main/res"
+DOC_ICON = REPO / "docs/icon/app-icon.png"
 
 # 密度 -> (传统图标 px, 108dp 画布 px)
 DENSITIES = {
@@ -24,6 +26,9 @@ DENSITIES = {
     "xxhdpi": (144, 324),
     "xxxhdpi": (192, 432),
 }
+
+# 文档图标边长：README 按 144 CSS px 展示，2 倍余量为高分屏留清晰度且体积可控
+DOC_ICON_SIZE = 320
 
 
 def main() -> None:
@@ -38,6 +43,10 @@ def main() -> None:
         )
         blur.save(out / "ic_launcher_background.png")
         print(f"mipmap-{density}: launcher={launcher}, canvas={canvas}")
+
+    src.resize((DOC_ICON_SIZE, DOC_ICON_SIZE), Image.LANCZOS).save(DOC_ICON, optimize=True)
+    size_kb = DOC_ICON.stat().st_size / 1024
+    print(f"{DOC_ICON.relative_to(REPO)}: {DOC_ICON_SIZE}px, {size_kb:.1f} KB")
 
 
 if __name__ == "__main__":

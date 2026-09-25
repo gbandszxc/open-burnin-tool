@@ -1,8 +1,22 @@
-# 煲机助手（Burn-in Assistant）
+<p align="center">
+  <img src="docs/icon/app-icon.png" alt="煲机助手 · Burn-in Tool 应用图标" width="144">
+</p>
 
-**简体中文** · [English](README_EN.md)
+<h1 align="center">煲机助手 · Burn-in Tool</h1>
 
-一款安卓耳机煲机（burn-in）工具：用科学的声音信号让新耳机的振膜更快进入稳定状态。全程离线、无账号、免费开源。
+<p align="center">
+  安卓耳机煲机（burn-in）工具 · 用科学的声音信号让新耳机的振膜更快进入稳定状态 · 全程离线、无账号、免费开源
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84.svg" alt="要求 Android 8.0 及以上">
+  <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF.svg" alt="Kotlin + Jetpack Compose">
+</p>
+
+<p align="center"><b>简体中文</b> · <a href="README_EN.md">English</a></p>
+
+---
 
 ## 功能
 
@@ -79,10 +93,10 @@
 APK 按 ABI 分包（`armeabi-v7a` / `arm64-v8a`，无 universal 包），产物统一命名为：
 
 ```
-煲机助手-v<版本号>-<abi>-<debug|release>.apk
+burn-in-tool-v<版本号>-<abi>-<debug|release>.apk
 ```
 
-例如 `煲机助手-v1.5.0-arm64-v8a-release.apk`、`煲机助手-v1.5.0-armeabi-v7a-debug.apk`。
+例如 `burn-in-tool-v1.5.0-arm64-v8a-release.apk`、`burn-in-tool-v1.5.0-armeabi-v7a-debug.apk`。
 
 ## 目录结构
 
