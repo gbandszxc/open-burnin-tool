@@ -1,0 +1,57 @@
+# DESIGN.md — 设计系统（煲机助手）
+
+> 依据当前 v1.3.0 实际实现固化。任何 UI 样式改动须更新本文件对应条目。每条注明代码位置，便于同步维护。
+
+## 设计原则
+
+1. **克制中性表面 + 单一强调色**：界面以中性 surface 层级承载，强调只用 `colorScheme.primary` 一 种颜色（选中描边/竖条/主按钮/进度弧/状态行），无第二强调色。全文 M3 color scheme 角色取色，禁止硬编码颜色（各页面通用，参见 `ui/burnin/BurnInIdleContent.kt` PlanCard/CardHeader）。
+2. **对比度正文 ≥ 4.5:1**：预置调色盘正文类角色（onSurface/onSurfaceVariant/on*Container vs 对应底色）按 WCAG ≥ 4.5:1 校验（`ui/theme/Color.kt` 文件头注释）。
+3. **动效 ease-out 且尊重系统动画关闭**：所有补间统一 650ms `EaseOutCubic`；系统「动画时长缩放 = 0」时一律 `snap()` 直接跳变（`ui/burnin/ProgressRing.kt` `rememberAnimationsEnabled`/`easeOutSpec`，`ui/burnin/BurnInIdleContent.kt` `easeOutColorSpec`）。动效克制：步进数值淡入 160ms（`HoursStepperRow`）、校验错误行出现/消失 `animateContentSize()`（`PlanModeContent`）。
+4. **说明性段落收进 InfoAction 弹窗**：多行说明一律收进行尾 ⓘ 图标弹窗，页面内只留单行功能性提示与校验错误（`ui/InfoDialog.kt`；用法见 `ui/BurnInApp.kt` 顶栏「煲机提示」、`ui/burnin/BurnInIdleContent.kt` `CUSTOM_PHASES_INFO`、`ui/settings/SettingsTab.kt` `DIM_KEEP_ALIVE_INFO`）。
+5. **选中态一律无对钩**：SegmentedButton 显式 `icon = {}`；卡片/色卡选中用主色描边 + tonal 底，不用对钩标记。
+
+## 色彩
+
+- **动态取色优先**：Android 12+ 开启动态取色时用 `dynamicLightColorScheme/dynamicDarkColorScheme` 跟随壁纸，优先于预置调色盘；低版本无此能力，开关置灰（`ui/theme/Theme.kt` `BurnInTheme`，开关在 `ui/settings/SettingsTab.kt` SwitchRow「动态取色」）。
+- **6 套预置调色盘**（浅/深各一套完整 M3 scheme，`ui/theme/Color.kt` `ThemePalettes`）：
+  1. 青瓷绿 `celadon`（品牌默认，`CeladonLight`/`CeladonDark`）
+  2. 靛蓝 `indigo`（`IndigoLight`/`IndigoDark`）
+  3. 琥珀暖橙 `amber`（`AmberLight`/`AmberDark`）
+  4. 玫瑰红 `rose`（`RoseLight`/`RoseDark`）
+  5. 森林绿 `forest`（`ForestLight`/`ForestDark`）
+  6. 天青蓝 `cerulean`（`CeruleanLight`/`CeruleanDark`）
+- 每套含浅/深两个 `ColorScheme`，按 M3 tonal 角色（primary=40/80、container=90/30、on*=10/90）调配；error 系沿用 Material 基准错误色。设置页色卡用 `palette.preview`（= 浅色 primary）。
+- 深浅色模式：跟随系统/强制浅色/强制深色，解析口径 `Theme.kt` `resolveDarkTheme`（系统栏样式与其保持一致，`MainActivity.applyEdgeToEdgeStyle`）。
+- 调色盘 id 持久化于 DataStore，默认 `celadon`（`data/SettingsRepository.kt` `DEFAULT_PALETTE_ID`；未知 id 回退首位）。
+
+## 排版
+
+- **默认系统字体家族、多字重**：不引入自定义字体；标题类（headlineSmall/titleLarge/titleMedium）统一 `FontWeight.SemiBold` 建立层级（`ui/theme/Type.kt` `AppTypography`）。
+- **计时大数字 `tnum` 等宽**：displayLarge/Medium/Small 启用 `fontFeatureSettings = "tnum"`，煲机计时逐秒跳动不位移（`ui/theme/Type.kt`；用在 `ui/burnin/BurnInTab.kt` ActiveContent 的已煲计时）。
+- **超长时长降字号规则**：计时 ≥ 1 天（跨天，格式 `d天 HH:mm:ss`）时，displaySmall 降为 30sp 保证单行放下（`ui/burnin/BurnInTab.kt` ActiveContent `crossDay` 分支；时长格式化在 `playback/TimeFormats.kt` `formatBurnDuration`）。
+- 面向人的粗粒度时长文案（「3 天 2 小时」等）用 `ui/DurationFormats.kt` `formatDurationHuman`，仅用于累计小结等非计时场景。
+- 计时文案一律 `maxLines = 1, softWrap = false`，禁换行。
+
+## 组件规范
+
+- **SegmentedButton（无对钩）**：`icon = {}` 显式去掉默认对钩，选中态仅 tonal 底 + 描边强调。用于双路线切换与自由煲机时长预设（`ui/burnin/BurnInIdleContent.kt` `ModeSwitchRow`/`PresetHoursRow`）、主题模式三选一（`ui/settings/SettingsTab.kt`）。
+- **方案卡（PlanCard）**：整卡可点；圆角 16dp；未选中 1dp `outlineVariant` 描边 + `surfaceContainerLowest` 底，选中 2dp `primary` 描边 + `surfaceContainerLow` 底，描边颜色 `animateColorAsState` ease-out 过渡；卡头 3×20dp 主色竖条随选中强调；卡内开始按钮全宽 44dp（`ui/burnin/BurnInIdleContent.kt` `PlanCard`/`CardHeader`/`CardStartButton`）。
+- **步进器**：40dp 圆形 OutlinedIconButton（内置图标 20dp）夹 160×48dp 居中数字输入框，按钮与输入框间距 12dp；到边界按钮禁用；−/+ 步进做 160ms 数值淡入（`ui/burnin/BurnInIdleContent.kt` `HoursStepperRow`/`StepperIconButton`/`CompactNumberField`）。
+- **紧凑数字输入框（CompactNumberField）**：48dp 高、12dp 圆角、1dp 细描边（错误态描边变 `error` 色）；数字与行尾单位小字整体居中；数字键盘单行；空值显示占位（`ui/burnin/BurnInIdleContent.kt` `CompactNumberField`）。
+- **进度环（ProgressRing）**：播放态 272dp，弧宽 12dp 圆角端点，自 12 点方向顺时针；底部整圈 `surfaceContainerHighest` 轨道 + 顶部 `primary` 进度弧；进度变化 ease-out 平滑追随；progress ≤ 0 只画轨道（`ui/burnin/ProgressRing.kt`；尺寸在 `ui/burnin/BurnInTab.kt` ActiveContent）。
+- **InfoAction（说明弹窗）**：行尾 24dp `Icons.Outlined.Info`（`onSurfaceVariant` 着色，按钮视觉 32dp、触达 ≥48dp），点击弹 `AlertDialog`（标题 = 设置项名，正文 = 说明全文，确认钮固定「知道了」）（`ui/InfoDialog.kt`）。
+- **底部导航**：`NavigationBar` 三 Tab（煲机/记录/设置），选中 Filled 图标 + 未选中 Outlined 图标（`ui/BurnInApp.kt` `AppTab`/NavigationBar）。
+- **顶栏（TopAppBar）**：标题随 Tab 切换（煲机助手/煲机记录/设置）；煲机页行尾固定「煲机提示」InfoAction + 屏幕常亮 IconToggleButton（选中 `primary`，未选中 `onSurfaceVariant`）（`ui/BurnInApp.kt`）。
+- **开关行（SwitchRow）**：整行可点（toggleable，最小高 48dp），行尾 Switch 仅作状态展示避免双重响应；ⓘ 图标在开关左侧（`ui/settings/SettingsTab.kt` `SwitchRow`）。
+- **记录列表**：小结行（两列数据 + 行尾清除 IconButton）+ `HorizontalDivider(outlineVariant)` + LazyColumn（内容 padding 水平 24dp）；行内边距垂直 12dp；状态色进行中/已暂停用 `primary`、其余 `onSurfaceVariant`（`ui/history/HistoryTab.kt` `SummaryRow`/`SessionRow`）。
+- **空态**：48dp Outlined 图标 + 标题 + 一句说明，不堆插画（`ui/history/HistoryTab.kt` `EmptyHistory`）。
+- **音效下拉（SoundSourceDropdown）**：收起态 44dp 只读触发行（与分段按钮行对齐）；展开菜单最高 380dp 内滚动，按「内置音效/本地音乐」分组；选中强调只用主色文字（无对钩）；本地音乐行尾删除图标（`ui/burnin/SoundSourceDropdown.kt`）。
+- **对话框**：危险操作（结束煲机/清除记录/移除本地音乐）用 `AlertDialog` + 文本按钮；破坏性确认钮用 `error` 色（`ui/burnin/BurnInTab.kt`、`ui/history/HistoryTab.kt` `ClearConfirmDialog`、`ui/burnin/BurnInIdleContent.kt`）。
+- **控制按钮**：播放态「暂停/继续」「结束」高 52dp、图标 24dp + 8dp 间距、`titleMedium` 文案，水平间距 12dp（`ui/burnin/BurnInTab.kt` ActiveContent）。
+
+## 间距与形状
+
+- **页面左右边距统一 24dp**：煲机页/设置页 `padding(horizontal = 24.dp)`，记录列表 `contentPadding` 水平 24dp（`ui/burnin/BurnInIdleContent.kt`、`ui/settings/SettingsTab.kt`、`ui/history/HistoryTab.kt`）。
+- **间距节奏**：字段标签与控件 8–12dp；相关区块间 16–24dp；分组（SectionHeader）上下 20/10dp；卡片之间 12dp；页面首尾留白 8/24dp（各页面 Column 内 Spacer 用法）。
+- **形状**：默认用 M3 组件默认圆角；自定义形状两档——卡片 16dp（PlanCard）、输入框 12dp（CompactNumberField）；色卡/竖条用 CircleShape / 2dp 小圆角（`ui/burnin/BurnInIdleContent.kt`、`ui/settings/SettingsTab.kt` `PaletteRow`）。
+- **图标尺寸**：行内图标统一 24dp（`ui/burnin/BurnInTab.kt` `Icon24`）；信息/操作小图标 20dp（设置关于行、步进器内）；触达目标经 M3 最小交互目标保证 ≥ 48dp。

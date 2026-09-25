@@ -1,0 +1,8 @@
+<resources>
+    <!-- 深色：系统深色模式时冷启动窗口底色为深色，避免开屏白闪。
+         与 values/themes.xml 同名覆盖，资源限定符由系统按夜间模式自动选择。 -->
+    <style name="Theme.BurnIn" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+    </style>
+</resources>

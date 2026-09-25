@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">煲机助手</string>
+
+    <!-- 前台服务通知（播放层） -->
+    <string name="notif_channel_name">煲机播放</string>
+    <string name="notif_channel_description">煲机进行时的常驻通知，含暂停/继续与结束控制</string>
+    <string name="notif_title_playing">煲机中 · %1$s</string>
+    <string name="notif_title_paused">已暂停 · %1$s</string>
+    <string name="notif_text_playing">阶段 %1$s ｜ 已煲 %2$s</string>
+    <string name="notif_text_paused">剩余 %1$s，点「继续」恢复</string>
+    <string name="notif_action_pause">暂停</string>
+    <string name="notif_action_resume">继续</string>
+    <string name="notif_action_stop">结束</string>
+
+    <!-- 煲机完成系统通知 -->
+    <string name="notif_complete_channel_name">煲机完成</string>
+    <string name="notif_complete_channel_description">煲机到达计划时长时的一条完成提示通知</string>
+    <string name="notif_complete_title">煲机完成</string>
+    <string name="notif_complete_text">本次煲机已达到计划时长，共 %1$s</string>
+</resources>

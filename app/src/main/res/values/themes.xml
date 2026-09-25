@@ -1,0 +1,8 @@
+<resources>
+    <!-- 最简主题：只依赖框架内置 Material，不引 appcompat/material xml 库。
+         日间用 Light 主题，冷启动窗口底色与 Compose 浅色主题一致，避免开屏白底闪深色。 -->
+    <style name="Theme.BurnIn" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+    </style>
+</resources>

@@ -1,0 +1,57 @@
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+**/build/
+
+# Local configuration
+local.properties
+secrets.properties
+key.properties
+
+# IDE / Android Studio
+.idea/
+*.iml
+.navigation/
+/shelf/
+
+# Native build (CMake/ndk-build)
+.cxx/
+.externalNativeBuild/
+
+# Signing / credentials
+*.jks
+*.keystore
+*.pem
+
+# Build outputs & packaging
+*.apk
+*.aab
+*.ap_
+output.json
+/captures/
+
+# Logs & diagnostics
+*.log
+*.hprof
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# 本地打包输出
+/dist/
+
+#Vibe
+.zcode/
+
+# 临时产物目录（截图/日志/临时脚本输出，永不提交）
+tmp/
+.zcodeignore
+
+# 数据库与证书
+*.db
+*.sqlite
+*.p12
+
+# 本地 release 打包输出
+app/release/
