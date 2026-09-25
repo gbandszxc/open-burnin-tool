@@ -24,7 +24,6 @@
 | :---: | :---: |
 | <img src="docs/screenshots/home_plan_en.jpg" width="320" alt="Burn-in Tool UI · English · Plan burn-in"> | <img src="docs/screenshots/home_free_en.jpg" width="320" alt="Burn-in Tool UI · English · Free burn-in"> |
 
-<p align="center"><sub>Top row: English UI · Bottom row: Simplified Chinese UI. Left column: Plan burn-in · Right column: Free burn-in.</sub></p>
 
 ## Features and manual
 

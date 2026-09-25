@@ -24,7 +24,6 @@
 | :---: | :---: |
 | <img src="docs/screenshots/home_plan.jpg" width="320" alt="煲机助手界面 · 简体中文 · 方案煲机"> | <img src="docs/screenshots/home_free.jpg" width="320" alt="煲机助手界面 · 简体中文 · 自由煲机"> |
 
-<p align="center"><sub>上排为简体中文界面，下排为英文界面；左列为方案煲机，右列为自由煲机。</sub></p>
 
 ## 功能与使用
 
