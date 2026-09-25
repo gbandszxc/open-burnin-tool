@@ -31,8 +31,8 @@
     <string name="card_classic_title">Standard 4-phase · 120 h</string>
     <string name="card_classic_subtitle">12 h white → 12 h pink → 72 h pink steady → 24 h rotation</string>
     <string name="card_custom_title">Custom 4-phase</string>
-    <string name="info_classic_body">120 hours in total, split into four phases from gentle to strong:\n\nGentle · 12 h · White noise (20%% volume)\nAdapt · 12 h · Pink noise (33%% volume)\nSteady · 72 h · Pink noise steady (47%% volume)\nAlternate · 24 h · White/pink noise every 30 min (60%% volume)</string>
-    <string name="info_custom_body">Total duration is split into four phases at a fixed 10 / 10 / 60 / 20 ratio:\n\nGentle · 10%% · White noise\nAdapt · 10%% · Pink noise\nSteady · 60%% · Pink noise (steady)\nAlternate · 20%% · White/pink noise every 30 min</string>
+    <string name="info_classic_body" formatted="false">120 hours in total, split into four phases from gentle to strong:\n\nGentle · 12 h · White noise (20% volume)\nAdapt · 12 h · Pink noise (33% volume)\nSteady · 72 h · Pink noise steady (47% volume)\nAlternate · 24 h · White/pink noise every 30 min (60% volume)</string>
+    <string name="info_custom_body" formatted="false">Total duration is split into four phases at a fixed 10 / 10 / 60 / 20 ratio:\n\nGentle · 10% · White noise\nAdapt · 10% · Pink noise\nSteady · 60% · Pink noise (steady)\nAlternate · 20% · White/pink noise every 30 min</string>
     <string name="last_progress_fmt">Last progress %1$s</string>
     <string name="btn_resume">Resume</string>
     <string name="btn_start_fresh">Start fresh</string>
@@ -130,6 +130,7 @@
     <string name="history_loading">Loading…</string>
     <string name="history_total_count_fmt">%1$d in total</string>
     <string name="history_plan_line_fmt">%1$s · Planned %2$s</string>
+    <string name="history_plan_line_sound_fmt">%1$s · Planned %2$s · %3$s</string>
     <string name="history_burned_fmt">Burned %1$s</string>
     <string name="status_running">In progress</string>
     <string name="status_paused">Paused</string>

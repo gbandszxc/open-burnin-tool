@@ -13,7 +13,7 @@
 - **方案煲机**（`BurnMode.PLAN`，`playback/BurnInViewModel.kt`）
   - 标准四阶段 · 120 小时：舒缓 12h 白噪（1/5 音量）→ 适应 12h 粉噪（1/3）→ 稳定 72h 粉噪恒定（7/15）→ 轮换 24h 白噪↔粉噪每 30 分钟轮换（3/5）（`domain/model/BurnPlans.kt`；阶段时长/音量沿原版逆向结论，内置音乐音源已移除，音源为本版合成编排）。
   - 自定义四阶段：总时长 24–240 小时（默认 48，步进 ±12，`BurnInUiState.PLAN_CUSTOM_HOURS_RANGE/_STEP`），按 10/10/60/20 比例缩放到四阶段，轮换阶段轮换周期保持 30 分钟（`BurnPlans.custom`）。
-  - 阶段编排：四阶段播放顺序可拖拽调整；各阶段响度可按阶段身份覆盖（1–100，默认仍为 1/5、1/3、7/15、3/5）；稳定阶段可在「粉噪恒定」与「本地音乐（单曲或多曲有序歌单）」间切换替换粉噪。编排作用于标准与自定义两种四阶段方案并持久记忆（DataStore，缺省为顺序 0..3、无响度覆盖、粉噪恒定）（`ui/burnin/StageArrangementSection.kt`；域层 `BurnPlan.withStageOrder`/`BurnPlan.withStageGains`，`BurnPlans.classic`/`BurnPlans.custom` 的 `steadyTrackIds` 稳定阶段注入）。
+  - 阶段编排：四阶段播放顺序可拖拽调整；各阶段响度可按阶段身份覆盖（1–100，默认仍为 1/5、1/3、7/15、3/5）——行内点百分比弹出响度对话框，±5 步进按钮 + 1–100 手动输入（行内校验，非法禁用确定，可一键恢复默认）；稳定阶段模式（「粉噪恒定」/「本地音乐（单曲或多曲有序歌单）」）与曲目勾选收进「稳定阶段播放内容」弹窗，经稳定阶段行内编辑图标进入，弹窗内变更即时生效。编排作用于标准与自定义两种四阶段方案并持久记忆（DataStore，缺省为顺序 0..3、无响度覆盖、粉噪恒定）（`ui/burnin/StageArrangementSection.kt`；域层 `BurnPlan.withStageOrder`/`BurnPlan.withStageGains`，`BurnPlans.classic`/`BurnPlans.custom` 的 `steadyTrackIds` 稳定阶段注入）。
 - **自由煲机**（`BurnMode.FREE`）
   - 音源任选：内置 7 合成音源或已导入的本地音乐（分组下拉，`ui/burnin/SoundSourceDropdown.kt`）。
   - 时长预设 2/8/16/24/48/72 小时（`BurnPlans.QUICK_HOURS`，默认 8h），或自定义 1–999 小时（预设与自定义互斥，`BurnInUiState.FREE_CUSTOM_HOURS_RANGE`）。
@@ -29,7 +29,7 @@
 - 顶部小结：累计煲机 + 会话次数 + 清除入口。
 - 分页列表：每页 20 条按开始时间倒序，滚近末尾自动追加，尾项提示「加载中 / 共 N 条」（`ui/history/HistoryViewModel.kt`，`data/BurnInRepository.sessionPage`）。
 - 清除全部记录：二次确认弹窗（删记录 + 重置累计统计，不可恢复）。
-- 会话行：时间 + 状态（进行中/已暂停/已完成/已结束）、方案与计划时长、实际已煲。
+- 会话行：时间 + 状态（进行中/已暂停/已完成/已结束）、方案与计划时长、实际已煲；自由煲机会话回显所用音效（内置音源本地化名或本地曲目名快照，旧数据无此信息则不显示）。
 
 ### 后台前台播放与通知控制（`playback/PlaybackController.kt`、`playback/BurnInService.kt`）
 

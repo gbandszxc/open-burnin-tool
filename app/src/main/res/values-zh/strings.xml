@@ -30,8 +30,8 @@
     <string name="card_classic_title">标准四阶段 · 120 小时</string>
     <string name="card_classic_subtitle">舒缓 12h 白噪 → 适应 12h 粉噪 → 稳定 72h 粉噪 → 轮换 24h 白/粉噪交替</string>
     <string name="card_custom_title">自定义四阶段</string>
-    <string name="info_classic_body">全程 120 小时，按「先轻后重」分四个阶段：\n\n舒缓 · 12h · 白噪音（20%% 音量）\n适应 · 12h · 粉红噪音（33%% 音量）\n稳定 · 72h · 粉红噪音恒定（47%% 音量）\n轮换 · 24h · 白噪音与粉红噪音每 30 分钟轮换（60%% 音量）</string>
-    <string name="info_custom_body">总时长按 10 / 10 / 60 / 20 等比分为四个阶段：\n\n舒缓 · 10%% · 白噪音\n适应 · 10%% · 粉红噪音\n稳定 · 60%% · 粉红噪音（恒定）\n轮换 · 20%% · 白噪音与粉红噪音每 30 分钟轮换</string>
+    <string name="info_classic_body" formatted="false">全程 120 小时，按「先轻后重」分四个阶段：\n\n舒缓 · 12h · 白噪音（20% 音量）\n适应 · 12h · 粉红噪音（33% 音量）\n稳定 · 72h · 粉红噪音恒定（47% 音量）\n轮换 · 24h · 白噪音与粉红噪音每 30 分钟轮换（60% 音量）</string>
+    <string name="info_custom_body" formatted="false">总时长按 10 / 10 / 60 / 20 等比分为四个阶段：\n\n舒缓 · 10% · 白噪音\n适应 · 10% · 粉红噪音\n稳定 · 60% · 粉红噪音（恒定）\n轮换 · 20% · 白噪音与粉红噪音每 30 分钟轮换</string>
     <string name="last_progress_fmt">上次进度 %1$s</string>
     <string name="btn_resume">继续</string>
     <string name="btn_start_fresh">全新开始</string>
@@ -129,6 +129,7 @@
     <string name="history_loading">正在加载…</string>
     <string name="history_total_count_fmt">共 %1$d 条</string>
     <string name="history_plan_line_fmt">%1$s · 计划 %2$s</string>
+    <string name="history_plan_line_sound_fmt">%1$s · 计划 %2$s · %3$s</string>
     <string name="history_burned_fmt">已煲 %1$s</string>
     <string name="status_running">进行中</string>
     <string name="status_paused">已暂停</string>

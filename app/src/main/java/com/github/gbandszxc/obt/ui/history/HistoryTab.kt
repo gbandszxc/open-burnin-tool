@@ -46,6 +46,7 @@ import com.github.gbandszxc.obt.R
 import com.github.gbandszxc.obt.data.BurnInSession
 import com.github.gbandszxc.obt.data.SessionStatus
 import com.github.gbandszxc.obt.domain.model.BurnPlans
+import com.github.gbandszxc.obt.domain.model.SoundSource
 import com.github.gbandszxc.obt.playback.formatBurnDuration
 import com.github.gbandszxc.obt.ui.HumanDurationPatterns
 import com.github.gbandszxc.obt.ui.formatDurationHuman
@@ -255,7 +256,7 @@ private fun HistoryFooter(
     }
 }
 
-/** 单条会话：日期时间 + 状态，方案与计划时长，实际已煲。 */
+/** 单条会话：日期时间 + 状态，方案与计划时长（自由煲机追加所用音效），实际已煲。 */
 @Composable
 private fun SessionRow(session: BurnInSession) {
     val statusColor = when (session.status) {
@@ -286,12 +287,17 @@ private fun SessionRow(session: BurnInSession) {
             )
         }
         Spacer(Modifier.height(2.dp))
+        // 自由煲机会话（soundSourceId 非空）在方案行末尾追加「 · 音效名」；
+        // 方案煲机与旧数据（null）走原格式，行展示与既有完全一致。
+        val planName = planDisplayName(BurnPlans.forPresetHours(session.presetHours).id, context)
+        val planned = formatBurnDuration(session.plannedSeconds, crossDayTemplate)
+        val soundName = sessionSoundLabel(session)
         Text(
-            text = stringResource(
-                R.string.history_plan_line_fmt,
-                planDisplayName(BurnPlans.forPresetHours(session.presetHours).id, context),
-                formatBurnDuration(session.plannedSeconds, crossDayTemplate),
-            ),
+            text = if (soundName != null) {
+                stringResource(R.string.history_plan_line_sound_fmt, planName, planned, soundName)
+            } else {
+                stringResource(R.string.history_plan_line_fmt, planName, planned)
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -349,6 +355,22 @@ private fun statusLabel(status: SessionStatus): String = stringResource(
         SessionStatus.ABANDONED -> R.string.status_abandoned
     },
 )
+
+/**
+ * 会话行音效回显名：仅自由煲机会话（soundSourceId 非空）有值——
+ * 内置合成音源取其本地化名；本地音乐取会话开始时的曲目名快照（曲目之后可能被删，
+ * 快照缺失时回退「本地音乐」占位）。方案煲机与迁移前旧数据（null/未知编号）返回 null，
+ * 行内不追加音效。展示名随应用语言即时解析（见 [SoundSource.fromLegacySoundId]）。
+ */
+@Composable
+private fun sessionSoundLabel(session: BurnInSession): String? {
+    val source = SoundSource.fromLegacySoundId(session.soundSourceId) ?: return null
+    return if (source == SoundSource.LOCAL_TRACK) {
+        session.soundLabel ?: stringResource(R.string.sound_local_track)
+    } else {
+        stringResource(source.nameRes)
+    }
+}
 
 /** 会话开始时间：pattern 随应用语言（资源 history_time_pattern，如 zh「M月d日 HH:mm」/ en「MMM d, HH:mm」）。 */
 private fun formatSessionTime(epochMillis: Long, context: Context): String =

@@ -68,5 +68,12 @@ enum class SoundSource(
          * 下拉框等音效遍历一律使用本列表，避免把本地音源占位项当内置音效展示。
          */
         val catalog: List<SoundSource> = entries.filter { it != LOCAL_TRACK }
+
+        /**
+         * 按原版音源编号反查音源枚举（历史页会话行回显自由煲机所用音效用）：
+         * null 或未知编号一律返回 null，调用方据此回退为不展示音效。
+         */
+        fun fromLegacySoundId(id: Int?): SoundSource? =
+            id?.let { legacyId -> entries.firstOrNull { it.legacySoundId == legacyId } }
     }
 }

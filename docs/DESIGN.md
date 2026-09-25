@@ -44,7 +44,7 @@
 - **底部导航**：`NavigationBar` 三 Tab（煲机/记录/设置），选中 Filled 图标 + 未选中 Outlined 图标（`ui/BurnInApp.kt` `AppTab`/NavigationBar）。
 - **顶栏（TopAppBar）**：标题随 Tab 切换（煲机助手/煲机记录/设置）；煲机页行尾固定「煲机提示」InfoAction + 屏幕常亮 IconToggleButton（选中 `primary`，未选中 `onSurfaceVariant`）（`ui/BurnInApp.kt`）。
 - **开关行（SwitchRow）**：整行可点（toggleable，最小高 48dp），行尾 Switch 仅作状态展示避免双重响应；ⓘ 图标在开关左侧（`ui/settings/SettingsTab.kt` `SwitchRow`）。
-- **记录列表**：小结行（两列数据 + 行尾清除 IconButton）+ `HorizontalDivider(outlineVariant)` + LazyColumn（内容 padding 水平 24dp）；行内边距垂直 12dp；状态色进行中/已暂停用 `primary`、其余 `onSurfaceVariant`（`ui/history/HistoryTab.kt` `SummaryRow`/`SessionRow`）。
+- **记录列表**：小结行（两列数据 + 行尾清除 IconButton）+ `HorizontalDivider(outlineVariant)` + LazyColumn（内容 padding 水平 24dp）；行内边距垂直 12dp；状态色进行中/已暂停用 `primary`、其余 `onSurfaceVariant`；会话行方案行（`bodySmall`/`onSurfaceVariant`）在自由煲机会话末尾追加「 · 音效名」（内置合成音源本地化名、本地音乐显示曲目名快照且缺省回退「本地音乐」；方案煲机与旧数据不追加），沿用该行既有字体与配色（`ui/history/HistoryTab.kt` `SummaryRow`/`SessionRow`）。
 - **空态**：48dp Outlined 图标 + 标题 + 一句说明，不堆插画（`ui/history/HistoryTab.kt` `EmptyHistory`）。
 - **音效下拉（SoundSourceDropdown）**：收起态 44dp 只读触发行（与分段按钮行对齐）；展开菜单最高 380dp 内滚动，按「内置音效/本地音乐」分组；选中强调只用主色文字（无对钩）；本地音乐行尾删除图标（`ui/burnin/SoundSourceDropdown.kt`）。
 - **对话框**：危险操作（结束煲机/清除记录/移除本地音乐）用 `AlertDialog` + 文本按钮；破坏性确认钮用 `error` 色（`ui/burnin/BurnInTab.kt`、`ui/history/HistoryTab.kt` `ClearConfirmDialog`、`ui/burnin/BurnInIdleContent.kt`）。
