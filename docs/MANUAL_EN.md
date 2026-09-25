@@ -126,7 +126,7 @@ Clearing all records asks for confirmation first, then deletes every record and 
 
 ### Keep screen on
 
-When on, the playback screen stays awake. The switch is available in the top bar of the burn-in page and on the Settings page.
+When on, the playback screen stays awake. The switch is available on the Settings page, in the Playback group.
 
 ### Anti screen-off
 
@@ -136,7 +136,7 @@ Touching the screen, pausing or stopping the burn-in restores normal brightness.
 
 ### Theme
 
-Three modes: follow system, force light, force dark.
+Three modes: follow system, force light, force dark. The top bar of the burn-in page also has a quick light/dark toggle: in light mode it shows a moon icon and tapping switches to dark; in dark mode it shows a sun icon and tapping switches to light. It is the same setting as the theme mode on the Settings page; the switch takes effect immediately and is remembered. Under follow system, it inverts whichever of light or dark is currently shown.
 
 ### Dynamic color and preset palettes
 

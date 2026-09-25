@@ -42,7 +42,7 @@
 - **进度环（ProgressRing）**：播放态 272dp，弧宽 12dp 圆角端点，自 12 点方向顺时针；底部整圈 `surfaceContainerHighest` 轨道 + 顶部 `primary` 进度弧；进度变化 ease-out 平滑追随；progress ≤ 0 只画轨道（`ui/burnin/ProgressRing.kt`；尺寸在 `ui/burnin/BurnInTab.kt` ActiveContent）。
 - **InfoAction（说明弹窗）**：行尾 24dp `Icons.Outlined.Info`（`onSurfaceVariant` 着色，按钮视觉 32dp、触达 ≥48dp），点击弹 `AlertDialog`（标题 = 设置项名，正文 = 说明全文，确认钮固定「知道了」）（`ui/InfoDialog.kt`）。
 - **底部导航**：`NavigationBar` 三 Tab（煲机/记录/设置），选中 Filled 图标 + 未选中 Outlined 图标（`ui/BurnInApp.kt` `AppTab`/NavigationBar）。
-- **顶栏（TopAppBar）**：标题随 Tab 切换（煲机助手/煲机记录/设置）；煲机页行尾固定「煲机提示」InfoAction + 屏幕常亮 IconToggleButton（选中 `primary`，未选中 `onSurfaceVariant`）（`ui/BurnInApp.kt`）。
+- **顶栏（TopAppBar）**：标题随 Tab 切换（煲机助手/煲机记录/设置）；煲机页行尾固定「煲机提示」InfoAction + 深浅色切换图标按钮（浅色显示月亮、可切深色，深色显示太阳、可切浅色）（`ui/BurnInApp.kt`）。
 - **开关行（SwitchRow）**：整行可点（toggleable，最小高 48dp），行尾 Switch 仅作状态展示避免双重响应；ⓘ 图标在开关左侧（`ui/settings/SettingsTab.kt` `SwitchRow`）。
 - **记录列表**：小结行（两列数据 + 行尾清除 IconButton）+ `HorizontalDivider(outlineVariant)` + LazyColumn（内容 padding 水平 24dp）；行内边距垂直 12dp；状态色进行中/已暂停用 `primary`、其余 `onSurfaceVariant`；会话行方案行（`bodySmall`/`onSurfaceVariant`）在自由煲机会话末尾追加「 · 音效名」（内置合成音源本地化名、本地音乐显示曲目名快照且缺省回退「本地音乐」；方案煲机与旧数据不追加），沿用该行既有字体与配色（`ui/history/HistoryTab.kt` `SummaryRow`/`SessionRow`）。
 - **空态**：48dp Outlined 图标 + 标题 + 一句说明，不堆插画（`ui/history/HistoryTab.kt` `EmptyHistory`）。
