@@ -13,7 +13,7 @@ import org.junit.Test
 
 /**
  * 煲机页配置状态 [BurnInUiState] 的派生逻辑测试：
- * 输入校验（方案 24-240 / 自由 1-999）、planId 推导（续播查询口径）、
+ * 输入校验（方案 8-240 / 自由 1-999）、planId 推导（续播查询口径）、
  * 开始可用性判定与音效选择文案。纯 JVM 断言，不依赖 Android 框架。
  */
 class BurnInUiStateTest {
@@ -25,10 +25,11 @@ class BurnInUiStateTest {
         addedAt = 0L,
     )
 
-    // ---- 方案自定义小时数（24-240） ----
+    // ---- 方案自定义小时数（8-240） ----
 
     @Test
     fun `方案自定义小时合法值解析`() {
+        assertEquals(8, BurnInUiState(planCustomHoursInput = "8").planCustomHours)
         assertEquals(24, BurnInUiState(planCustomHoursInput = "24").planCustomHours)
         assertEquals(48, BurnInUiState(planCustomHoursInput = "48").planCustomHours)
         assertEquals(240, BurnInUiState(planCustomHoursInput = "240").planCustomHours)
@@ -38,7 +39,7 @@ class BurnInUiStateTest {
     fun `方案自定义小时非法或越界返回null`() {
         assertNull(BurnInUiState(planCustomHoursInput = "").planCustomHours)
         assertNull(BurnInUiState(planCustomHoursInput = "abc").planCustomHours)
-        assertNull(BurnInUiState(planCustomHoursInput = "23").planCustomHours)
+        assertNull(BurnInUiState(planCustomHoursInput = "7").planCustomHours)
         assertNull(BurnInUiState(planCustomHoursInput = "241").planCustomHours)
     }
 
@@ -51,7 +52,7 @@ class BurnInUiStateTest {
         assertEquals("custom_48h", custom.selectedPlanId)
 
         // 自定义输入非法时无 planId，调用方应跳过续播查询
-        assertNull(BurnInUiState(planCard = PlanCard.CUSTOM, planCustomHoursInput = "12").selectedPlanId)
+        assertNull(BurnInUiState(planCard = PlanCard.CUSTOM, planCustomHoursInput = "7").selectedPlanId)
     }
 
     // ---- 自由煲机小时数（1-999，自定义优先于预设） ----

@@ -178,7 +178,7 @@ data class BurnInUiState(
     companion object {
 
         /** 方案自定义小时数合法范围。 */
-        val PLAN_CUSTOM_HOURS_RANGE: IntRange = 24..240
+        val PLAN_CUSTOM_HOURS_RANGE: IntRange = 8..240
 
         /** 方案自定义小时数默认值。 */
         const val DEFAULT_PLAN_CUSTOM_HOURS = 48
@@ -360,7 +360,12 @@ class BurnInViewModel(
         } else {
             -BurnInUiState.PLAN_CUSTOM_HOURS_STEP
         }
-        setPlanCustomHours((base + delta).coerceIn(24, 240).toString())
+        setPlanCustomHours(
+            (base + delta).coerceIn(
+                BurnInUiState.PLAN_CUSTOM_HOURS_RANGE.first,
+                BurnInUiState.PLAN_CUSTOM_HOURS_RANGE.last,
+            ).toString(),
+        )
     }
 
     /** 自由煲机选中预设时长（同时清空自定义输入，两者互斥）。 */
@@ -471,7 +476,7 @@ class BurnInViewModel(
     }
 
     /**
-     * 开始自定义四阶段方案：[hours] 为总时长（调用方传入已校验的合法值，24-240），
+     * 开始自定义四阶段方案：[hours] 为总时长（调用方传入已校验的合法值，8-240），
      * 其余组装与续播语义同 [startClassicPlan]。
      */
     fun startCustomPlan(hours: Int, resumeFromSeconds: Long? = null) {

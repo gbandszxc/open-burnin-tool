@@ -12,7 +12,7 @@
 
 - **方案煲机**（`BurnMode.PLAN`，`playback/BurnInViewModel.kt`）
   - 标准四阶段 · 120 小时：舒缓 12h 白噪（1/5 音量）→ 适应 12h 粉噪（1/3）→ 稳定 72h 粉噪恒定（7/15）→ 轮换 24h 白噪↔粉噪每 30 分钟轮换（3/5）（`domain/model/BurnPlans.kt`；阶段时长/音量沿原版逆向结论，内置音乐音源已移除，音源为本版合成编排）。
-  - 自定义四阶段：总时长 24–240 小时（默认 48，步进 ±12，`BurnInUiState.PLAN_CUSTOM_HOURS_RANGE/_STEP`），按 10/10/60/20 比例缩放到四阶段，轮换阶段轮换周期保持 30 分钟（`BurnPlans.custom`）。
+  - 自定义四阶段：总时长 8–240 小时（默认 48，步进 ±12，`BurnInUiState.PLAN_CUSTOM_HOURS_RANGE/_STEP`），按 10/10/60/20 比例缩放到四阶段，轮换阶段轮换周期保持 30 分钟（`BurnPlans.custom`）。
   - 阶段编排：四阶段播放顺序可拖拽调整；各阶段响度可按阶段身份覆盖（1–100，默认仍为 1/5、1/3、7/15、3/5）——行内点百分比弹出响度对话框，±5 步进按钮 + 1–100 手动输入（行内校验，非法禁用确定，可一键恢复默认）；稳定阶段模式（「粉噪恒定」/「本地音乐（单曲或多曲有序歌单）」）与曲目勾选收进「稳定阶段播放内容」弹窗，经稳定阶段行内编辑图标进入，弹窗内变更即时生效。编排作用于标准与自定义两种四阶段方案并持久记忆（DataStore，缺省为顺序 0..3、无响度覆盖、粉噪恒定）（`ui/burnin/StageArrangementSection.kt`；域层 `BurnPlan.withStageOrder`/`BurnPlan.withStageGains`，`BurnPlans.classic`/`BurnPlans.custom` 的 `steadyTrackIds` 稳定阶段注入）。
 - **自由煲机**（`BurnMode.FREE`）
   - 音源任选：内置 7 合成音源或已导入的本地音乐（分组下拉，`ui/burnin/SoundSourceDropdown.kt`）。

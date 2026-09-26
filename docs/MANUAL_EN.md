@@ -32,7 +32,7 @@ The standard plan runs 120 hours in total and plays its four phases in order.
 
 ### Custom four phases
 
-A custom plan sets its own total duration, from 24–240 hours, 48 hours by default, with the stepper changing it by 12 hours at a time. The four phases scale to that total at a 10/10/60/20 ratio, which means Gentle 10%, Adapt 10%, Steady 60% and Rotation 20%. The Rotation phase still alternates every 30 minutes.
+A custom plan sets its own total duration, from 8–240 hours, 48 hours by default, with the stepper changing it by 12 hours at a time. The four phases scale to that total at a 10/10/60/20 ratio, which means Gentle 10%, Adapt 10%, Steady 60% and Rotation 20%. The Rotation phase still alternates every 30 minutes.
 
 ### Reorder the phases
 
