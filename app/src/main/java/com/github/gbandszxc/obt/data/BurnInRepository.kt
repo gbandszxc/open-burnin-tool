@@ -119,8 +119,8 @@ class BurnInRepository(private val dao: BurnInSessionDao) {
     }
 
     /**
-     * 开始新会话前作废同方案旧的可续检查点：该方案下所有 RUNNING/PAUSED 且
-     * completedSeconds > 0 的会话行批量置为 ABANDONED——历史记录仍可见（记录页显示
+     * 开始新会话前作废同方案旧检查点：该方案下所有 RUNNING/PAUSED 会话行（无论有无进度，
+     * 含起播即杀后台留下的零进度行）批量置为 ABANDONED——历史记录仍可见（记录页显示
      * "已放弃"），但不再出现在 [latestResumableSession] 的续播查询里，保证同一方案
      * 任意时刻至多保留一个可续检查点。方案口径与 [latestResumableSession] 一致：
      * [presetHoursOf] + [BurnPlan.totalSeconds] 精确匹配。

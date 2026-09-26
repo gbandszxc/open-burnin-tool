@@ -72,10 +72,11 @@ interface BurnInSessionDao {
     suspend fun latestResumable(presetHours: Int, plannedSeconds: Long): BurnInSession?
 
     /**
-     * 把指定方案规模（presetHours + plannedSeconds 共同锁定）下所有「可续播」会话
-     * 批量置为 ABANDONED：开始新会话前调用，保证同一方案任意时刻至多保留一个可续检查点——
-     * 无论「继续」（旧检查点被新会话取代）还是「全新开始」（旧检查点作废），
-     * 旧 RUNNING/PAUSED 检查点行都不再无限累积、方案卡不再显示过期的「上次进度」。
+     * 把指定方案规模（presetHours + plannedSeconds 共同锁定）下所有历史 RUNNING/PAUSED
+     * 检查点（无论有无进度）批量置为 ABANDONED：开始新会话前调用，保证同一方案任意时刻
+     * 至多保留一个可续检查点——无论「继续」（旧检查点被新会话取代）还是「全新开始」（旧检查点作废），
+     * 旧 RUNNING/PAUSED 检查点行（含起播即杀后台留下的零进度行）都不再无限累积、
+     * 方案卡不再显示过期的「上次进度」。
      * 置为 ABANDONED 后历史记录仍可见（记录页显示"已放弃"），只是不再进入续播查询。
      *
      * 大小写坑：存库值由 SessionStatusConverter 决定（小写），但 SQL 字面量比较必须经
@@ -84,7 +85,7 @@ interface BurnInSessionDao {
      */
     @Query(
         "UPDATE burn_in_sessions SET status = 'abandoned', lastUpdatedAt = :now " +
-            "WHERE UPPER(status) IN ('RUNNING', 'PAUSED') AND completedSeconds > 0 " +
+            "WHERE UPPER(status) IN ('RUNNING', 'PAUSED') " +
             "AND presetHours = :presetHours AND plannedSeconds = :plannedSeconds",
     )
     suspend fun abandonResumableByPlan(presetHours: Int, plannedSeconds: Long, now: Long)

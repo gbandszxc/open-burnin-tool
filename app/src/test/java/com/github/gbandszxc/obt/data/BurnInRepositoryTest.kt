@@ -81,12 +81,11 @@ class BurnInRepositoryTest {
                 .maxWithOrNull(compareBy({ it.startedAt }, { it.id }))
 
         // 对应 SQL：UPDATE ... SET status = 'abandoned' WHERE UPPER(status) IN ('RUNNING','PAUSED')
-        //   AND completedSeconds > 0 AND presetHours = :x AND plannedSeconds = :y（全量更新，无 LIMIT）
+        //   AND presetHours = :x AND plannedSeconds = :y（全量更新，无 LIMIT、无进度门槛）
         override suspend fun abandonResumableByPlan(presetHours: Int, plannedSeconds: Long, now: Long) {
             rows.withIndex()
                 .filter { (_, s) ->
                     (s.status == SessionStatus.RUNNING || s.status == SessionStatus.PAUSED) &&
-                        s.completedSeconds > 0L &&
                         s.presetHours == presetHours &&
                         s.plannedSeconds == plannedSeconds
                 }
@@ -318,7 +317,7 @@ class BurnInRepositoryTest {
     }
 
     // ------------------------------------------------------------------
-    // abandonResumableSessions：新会话前旧检查点被置 abandoned（检查点不无限累积）
+    // abandonResumableSessions：新会话前旧检查点（含零进度行）被置 abandoned（检查点不无限累积）
     // ------------------------------------------------------------------
 
     @Test
@@ -347,14 +346,34 @@ class BurnInRepositoryTest {
     }
 
     @Test
-    fun `已煲为0的检查点与已完结会话不受作废影响`() = runBlocking {
+    fun `已煲为0的运行中检查点一并作废而已完结会话不受影响`() = runBlocking {
         val (repo, dao) = repository()
-        // completedSeconds = 0 与 ABANDONED/COMPLETED 本就不是可续播行，作废操作不应改动它们
-        val zeroId = dao.insert(session("quick_8h", SessionStatus.RUNNING, completedSeconds = 0L, startedAt = 100L))
+        // 零进度 RUNNING/PAUSED 行（起播即杀后台反复留下的遗留行）同属旧检查点，
+        // 作废时一并让位，避免「进行中 · 已煲 00:00」行无限累积；已完结会话状态不受影响
+        val zeroRunningId = dao.insert(session("quick_8h", SessionStatus.RUNNING, completedSeconds = 0L, startedAt = 100L))
+        val zeroPausedId = dao.insert(session("quick_8h", SessionStatus.PAUSED, completedSeconds = 0L, startedAt = 150L))
         val doneId = dao.insert(session("quick_8h", SessionStatus.COMPLETED, completedSeconds = 28_800L, startedAt = 200L))
         repo.abandonResumableSessions(BurnPlans.quick(8), nowMillis = 9_999L)
-        assertEquals(SessionStatus.RUNNING, dao.rows.first { it.id == zeroId }.status)
+        assertEquals(SessionStatus.ABANDONED, dao.rows.first { it.id == zeroRunningId }.status)
+        assertEquals(SessionStatus.ABANDONED, dao.rows.first { it.id == zeroPausedId }.status)
+        assertEquals(9_999L, dao.rows.first { it.id == zeroRunningId }.lastUpdatedAt)
         assertEquals(SessionStatus.COMPLETED, dao.rows.first { it.id == doneId }.status)
+    }
+
+    @Test
+    fun `零进度遗留行随起播一并作废后只留最新一条进行中`() = runBlocking {
+        val (repo, dao) = repository()
+        // 模拟「起播即杀后台」反复几次：同方案积累多条零进度 RUNNING/PAUSED 遗留行
+        dao.insert(session("quick_8h", SessionStatus.RUNNING, completedSeconds = 0L, startedAt = 100L))
+        dao.insert(session("quick_8h", SessionStatus.PAUSED, completedSeconds = 0L, startedAt = 200L))
+        // 复刻 PlaybackController.startInternal 的调用顺序：先作废（含零进度行），再插入新会话
+        repo.abandonResumableSessions(BurnPlans.quick(8), nowMillis = 9_999L)
+        val newId = repo.startSession(BurnPlans.quick(8), startedAtMillis = 10_000L)
+        // 记录页口径：RUNNING/PAUSED 行只剩最新一条，其余全部已结束（ABANDONED）
+        assertEquals(
+            listOf(newId),
+            dao.rows.filter { it.status == SessionStatus.RUNNING || it.status == SessionStatus.PAUSED }.map { it.id },
+        )
     }
 
     // ------------------------------------------------------------------
