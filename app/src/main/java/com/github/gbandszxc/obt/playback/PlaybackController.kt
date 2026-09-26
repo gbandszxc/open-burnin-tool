@@ -341,7 +341,7 @@ class PlaybackController(
         val created = try {
             createPlayerFor(position)?.apply {
                 player.setGain(playerGainFor(position.volumeRatio))
-                // 暂停起步不 start：播放器 prepared 待命（resume 走 start()，状态机等价）
+                // 暂停起步不 start：由 resume() 的未启动兜底补建播放（SynthPlayer.resume 幂等；MediaPlayer prepared 态 start 等价）
                 if (!startPaused) player.start()
             }
         } catch (t: Throwable) {

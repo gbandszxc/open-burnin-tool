@@ -317,6 +317,13 @@ internal class AudioTrackBurnSoundPlayer(source: SoundSource) : BurnSoundPlayer 
     }
 
     override fun resume() {
+        // resume 语义 = 从任何非播放态进入播放（与 MediaPlayer 包装 prepared→start() 行为对齐）。
+        // 暂停态起步（历史续播 startPaused 跳过 start）后首次恢复：写线程从未创建，
+        // MODE_STREAM 轨道零字节数据，仅 track.play() 无声——走 start() 补建写线程（幂等）
+        if (!running) {
+            start()
+            return
+        }
         runCatching { track.play() }
     }
 
