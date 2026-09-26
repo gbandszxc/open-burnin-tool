@@ -176,4 +176,28 @@ class HistoryResumeTest {
             ),
         )
     }
+
+    @Test
+    fun `零进度进行中会话行可续播`() {
+        // 进度落库粒度 60 秒：起播后未满一分钟即退出的会话 completedSeconds 仍为 0，
+        // 该行（进行中/已暂停）仍须满足续播显示口径——可重建方案即显示「继续」按钮，
+        // 点击以 0 为起点暂停态起步（等价从头播放）。回归锚定：显示条件不得再引入
+        // completedSeconds > 0 之类进度门槛。
+        val zeroProgress = session(
+            presetHours = 8,
+            plannedSeconds = 28_800L,
+            completedSeconds = 0L,
+            status = SessionStatus.RUNNING,
+        )
+        assertTrue(BurnInViewModel.sessionResumableFromHistory(zeroProgress))
+        val plan = BurnInViewModel.planForSession(
+            session = zeroProgress,
+            stageOrder = defaultOrder,
+            stageGains = defaultGains,
+            steadyEnabled = false,
+            steadyTrackIds = emptyList(),
+        )
+        assertEquals("custom_8h", plan?.id)
+        assertEquals(28_800L, plan?.totalSeconds)
+    }
 }

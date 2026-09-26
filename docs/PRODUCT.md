@@ -30,7 +30,7 @@
 - 分页列表：每页 20 条按开始时间倒序，滚近末尾自动追加，尾项提示「加载中 / 共 N 条」（`ui/history/HistoryViewModel.kt`，`data/BurnInRepository.sessionPage`）。
 - 清除全部记录：二次确认弹窗（删记录 + 重置累计统计，不可恢复）。
 - 会话行：时间 + 状态（进行中/已暂停/已完成/已结束）、方案与计划时长、实际已煲；自由煲机会话回显所用音效（内置音源本地化名或本地曲目名快照，旧数据无此信息则不显示）。
-- 历史续播：播放器空闲时，进行中/已暂停且已有进度的会话行显示「继续」按钮（方案煲机与内置合成音源的自由煲机可重建方案；本地音乐自由煲机未存歌单 id，不支持），点击跳转煲机页并处于**暂停态**（表盘定格于该会话已完成秒数），由煲机页「继续/结束」按钮恢复或终止（`playback/BurnInViewModel.resumeSessionFromHistory`、`playback/PlaybackController.start` 的 startPaused）。
+- 历史续播：播放器空闲时，进行中/已暂停的会话行显示「继续」按钮（方案煲机与内置合成音源的自由煲机可重建方案；本地音乐自由煲机未存歌单 id，不支持），点击跳转煲机页并处于**暂停态**（表盘定格于该会话已完成秒数），由煲机页「继续/结束」按钮恢复或终止。含刚起播未满一分钟、进度仍为 0 的会话（进度落库粒度 60 秒），此时继续即从零开始（`playback/BurnInViewModel.resumeSessionFromHistory`、`playback/PlaybackController.start` 的 startPaused）。
 
 ### 后台前台播放与通知控制（`playback/PlaybackController.kt`、`playback/BurnInService.kt`）
 

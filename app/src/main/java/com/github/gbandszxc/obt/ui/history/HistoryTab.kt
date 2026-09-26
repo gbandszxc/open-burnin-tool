@@ -72,6 +72,8 @@ private val RESUMABLE_STATUSES = setOf(SessionStatus.RUNNING, SessionStatus.PAUS
  *
  * 历史续播：播放器空闲（[showResumeActions]）时，进行中/已暂停且可重建方案的会话行
  * 显示「继续」按钮，点击经 [onResumeSession] 续播该会话（跳转煲机页、暂停态起步）。
+ * 0 进度的进行中/已暂停行同样显示——进度落库粒度为 60 秒（PlaybackController
+ * PERSIST_EVERY_TICKS），起播后未满一分钟即退出的会话进度仍为 0，属正常状态。
  *
  * BurnInApp 已收集同一 Activity 级 [HistoryViewModel] 的已加载列表与累计时长传入；
  * 分页辅助状态（到底/加载中/总数）与清除动作经 viewModel(factory=...) 取同一单例
@@ -143,7 +145,6 @@ fun HistoryTab(
                     session = session,
                     showResumeButton = showResumeActions &&
                         session.status in RESUMABLE_STATUSES &&
-                        session.completedSeconds > 0L &&
                         BurnInViewModel.sessionResumableFromHistory(session),
                     onResumeClick = { onResumeSession(session) },
                 )
@@ -296,7 +297,8 @@ fun historyPlanIdFor(session: BurnInSession): String =
  * 单条会话：日期时间 + 状态，方案与计划时长（自由煲机追加所用音效），实际已煲。
  *
  * 历史续播：[showResumeButton] 为真时在状态文本左侧显示「继续」播放三角按钮
- * （48dp 触达、24dp 图标、primary 着色），点击经 [onResumeClick] 上抛续播。
+ * （48dp 触达、24dp 图标、primary 着色），点击经 [onResumeClick] 上抛续播；
+ * 已煲 00:00 的进行中/已暂停行同样显示（进度落库粒度 60 秒，见 [HistoryTab] KDoc）。
  */
 @Composable
 private fun SessionRow(
