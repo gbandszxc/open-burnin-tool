@@ -274,6 +274,25 @@ private fun HistoryFooter(
 }
 
 /**
+ * 会话行方案 id 的显示口径（只推导 id 供文案回显，不构造方案，区别于续播重建的
+ * [com.github.gbandszxc.obt.playback.BurnInViewModel.planForSession]）：
+ * - 方案煲机会话（soundSourceId 为 null）：总时长等于标准方案（120 小时）→ classic_120h，
+ *   其余一律 custom_{presetHours}h——方案煲机只产生标准/自定义四阶段方案，绝不产生
+ *   quick 方案，不能按 [BurnPlans.forPresetHours] 的预设路由回显（否则方案煲机自定义
+ *   8 小时的行会误显「快速煲机 8 小时」，与煲机页/通知的「自定义 8 小时」不一致）；
+ * - 自由煲机会话（soundSourceId 非空）：一律 quick_{presetHours}h——自由煲机只有
+ *   单阶段 quick 方案，presetHours 可为 1-999 任意小时，含非 QUICK_HOURS 的自定义小时。
+ */
+fun historyPlanIdFor(session: BurnInSession): String =
+    if (session.soundSourceId != null) {
+        "quick_${session.presetHours}h"
+    } else if (session.presetHours * 3_600L == BurnPlans.CLASSIC_TOTAL_SECONDS) {
+        BurnPlans.CLASSIC.id
+    } else {
+        "custom_${session.presetHours}h"
+    }
+
+/**
  * 单条会话：日期时间 + 状态，方案与计划时长（自由煲机追加所用音效），实际已煲。
  *
  * 历史续播：[showResumeButton] 为真时在状态文本左侧显示「继续」播放三角按钮
@@ -322,9 +341,9 @@ private fun SessionRow(
             )
         }
         Spacer(Modifier.height(2.dp))
-        // 自由煲机会话（soundSourceId 非空）在方案行末尾追加「 · 音效名」；
-        // 方案煲机与旧数据（null）走原格式，行展示与既有完全一致。
-        val planName = planDisplayName(BurnPlans.forPresetHours(session.presetHours).id, context)
+        // 方案名按会话行显示口径（historyPlanIdFor）解析，与煲机页/通知的文案一致；
+        // 自由煲机会话（soundSourceId 非空）在方案行末尾追加「 · 音效名」。
+        val planName = planDisplayName(historyPlanIdFor(session), context)
         val planned = formatBurnDuration(session.plannedSeconds, crossDayTemplate)
         val soundName = sessionSoundLabel(session)
         Text(
