@@ -1,6 +1,7 @@
 package com.github.gbandszxc.obt.playback
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -453,14 +454,12 @@ class BurnInViewModel(
     /**
      * 开始方案煲机：[plan] 为选中卡对应的方案；[resumeFromSeconds] 非空且大于 0 时
      * 从该已完成秒数续播（来自 [BurnInUiState.resumableSession] 的查询结果），
-     * 否则全新开始。播放中调用会被控制器忽略（幂等）。
+     * 否则全新开始。[startPaused] = true 时以暂停态起步（历史记录续播，见
+     * [PlaybackController.start]）。播放中调用会被控制器忽略（幂等）。
      */
-    fun startPlan(plan: BurnPlan, resumeFromSeconds: Long? = null) {
-        if (resumeFromSeconds != null && resumeFromSeconds > 0L) {
-            controller.start(plan, resumeFromSeconds)
-        } else {
-            controller.start(plan)
-        }
+    fun startPlan(plan: BurnPlan, resumeFromSeconds: Long? = null, startPaused: Boolean = false) {
+        val from = resumeFromSeconds?.takeIf { it > 0L } ?: 0L
+        controller.start(plan, from, startPaused)
     }
 
     /**
@@ -510,6 +509,40 @@ class BurnInViewModel(
             )
         }
         controller.start(plan)
+    }
+
+    /**
+     * 从历史记录续播一次进行中/已暂停的会话（历史页「继续」入口）：
+     * 由会话行重建方案（[planForSession]，按当前编排配置组装，与方案卡续播的
+     * 记忆语义一致），以会话行已完成秒数为起点、**暂停态**起步——切回煲机页后
+     * 表盘定格为暂停，由煲机页既有「继续/结束」按钮恢复或终止。
+     * 控制器非空闲（已有会话）或方案不可重建（本地音乐自由煲机等）时忽略。
+     */
+    fun resumeSessionFromHistory(session: BurnInSession) {
+        if (controller.state.value.status != PlaybackStatus.IDLE) {
+            Log.i(TAG, "已有会话进行中，忽略历史记录续播")
+            return
+        }
+        val state = _uiState.value
+        val plan = planForSession(
+            session = session,
+            stageOrder = state.stageOrder,
+            stageGains = state.stageGains,
+            steadyEnabled = state.steadyMusicEnabled,
+            steadyTrackIds = state.effectiveSteadyTrackIds,
+        )
+        if (plan == null) {
+            Log.w(TAG, "历史会话方案不可重建（本地音乐自由煲机或音源编号未知），忽略续播：id=${session.id}")
+            return
+        }
+        if (plan.totalSeconds != session.plannedSeconds) {
+            Log.w(
+                TAG,
+                "历史会话重建方案总时长与会话行不一致" +
+                    "（重建=${plan.totalSeconds}s，行=${session.plannedSeconds}s），以重建方案为准：id=${session.id}",
+            )
+        }
+        startPlan(plan, session.completedSeconds, startPaused = true)
     }
 
     // ------------------------------------------------------------------
@@ -581,6 +614,69 @@ class BurnInViewModel(
     fun stop() = controller.stop()
 
     companion object {
+
+        private const val TAG = "BurnInViewModel"
+
+        /**
+         * 判断历史会话行是否可从记录页续播（进行中/已暂停行「继续」按钮的显示口径）：
+         * 方案煲机会话（soundSourceId 为 null）总能按当前编排配置重建方案；自由煲机会话
+         * 仅内置合成音源可由音源编号还原——本地音乐（只存曲目名快照、未存歌单 id，无法
+         * 重建歌单）与未知编号均不可重建。纯函数、JVM 可测，UI 只做布尔渲染。
+         */
+        fun sessionResumableFromHistory(session: BurnInSession): Boolean {
+            if (session.soundSourceId == null) return true
+            val sound = SoundSource.fromLegacySoundId(session.soundSourceId)
+            return sound != null && sound != SoundSource.LOCAL_TRACK
+        }
+
+        /**
+         * 由历史会话行重建可续播方案；不可重建返回 null（口径同 [sessionResumableFromHistory]）。
+         *
+         * - 方案煲机会话（soundSourceId 为 null）：计划时长为经典规模（120h；同规模的
+         *   custom_120h 阶段时长与之等价，沿仓库层续播匹配的「规模一致即等价」口径）走
+         *   经典方案，其余走自定义等比方案；两者均经 [BurnInUiState.buildStagePlan] 按
+         *   **当前编排配置**（顺序/响度覆盖/稳定阶段音乐）重组——与方案卡续播的记忆语义一致；
+         * - 自由煲机会话：按音源编号还原内置合成音源后走 [BurnPlans.quick]，时长取会话行的
+         *   预设小时数；本地音乐/未知编号返回 null。
+         *
+         * 纯函数、JVM 可测；重建结果的 [BurnPlan.totalSeconds] 与会话行
+         * [BurnInSession.plannedSeconds] 不一致时由调用方记日志并以重建方案为准。
+         */
+        fun planForSession(
+            session: BurnInSession,
+            stageOrder: List<Int>,
+            stageGains: Map<Int, Double>,
+            steadyEnabled: Boolean,
+            steadyTrackIds: List<Long>,
+        ): BurnPlan? {
+            val sound = SoundSource.fromLegacySoundId(session.soundSourceId)
+            if (session.soundSourceId != null) {
+                // 自由煲机会话：本地音乐（歌单 id 未落库）或未知编号无法重建
+                if (sound == null || sound == SoundSource.LOCAL_TRACK) return null
+                return BurnPlans.quick(session.presetHours, sound)
+            }
+            return if (session.plannedSeconds == BurnPlans.CLASSIC_TOTAL_SECONDS) {
+                BurnInUiState.buildStagePlan(
+                    hours = null,
+                    classic = true,
+                    stageOrder = stageOrder,
+                    stageGains = stageGains,
+                    steadyEnabled = steadyEnabled,
+                    steadyTrackIds = steadyTrackIds,
+                )
+            } else {
+                // 自定义方案时长取会话行预设小时数（非正数为脏数据，放弃重建）
+                val hours = session.presetHours.takeIf { it > 0 } ?: return null
+                BurnInUiState.buildStagePlan(
+                    hours = hours,
+                    classic = false,
+                    stageOrder = stageOrder,
+                    stageGains = stageGains,
+                    steadyEnabled = steadyEnabled,
+                    steadyTrackIds = steadyTrackIds,
+                )
+            }
+        }
 
         /** 手动注入工厂（项目不使用 Hilt，见 [com.github.gbandszxc.obt.data.AppContainer]）。 */
         fun factory(application: BurnInApplication): ViewModelProvider.Factory = viewModelFactory {

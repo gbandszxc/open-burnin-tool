@@ -123,6 +123,7 @@
     <string name="history_sessions_label">会话次数</string>
     <string name="history_session_count_fmt">%1$d 次</string>
     <string name="cd_clear_history">清除全部煲机记录</string>
+    <string name="cd_history_resume_session">继续这次煲机</string>
     <string name="history_clear_title">清除全部煲机记录？</string>
     <string name="history_clear_body">将删除全部煲机记录并重置累计统计，此操作不可恢复。</string>
     <string name="btn_clear">清除</string>

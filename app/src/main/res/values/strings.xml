@@ -124,6 +124,7 @@
     <string name="history_sessions_label">Sessions</string>
     <string name="history_session_count_fmt">%1$d sessions</string>
     <string name="cd_clear_history">Clear all burn-in history</string>
+    <string name="cd_history_resume_session">Resume this burn-in</string>
     <string name="history_clear_title">Clear all burn-in history?</string>
     <string name="history_clear_body">All burn-in history and cumulative stats will be deleted. This cannot be undone.</string>
     <string name="btn_clear">Clear</string>

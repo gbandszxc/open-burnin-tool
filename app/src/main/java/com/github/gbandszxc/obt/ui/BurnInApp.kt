@@ -48,6 +48,7 @@ import com.github.gbandszxc.obt.data.SessionStatus
 import com.github.gbandszxc.obt.data.ThemeMode
 import com.github.gbandszxc.obt.locale.AppLocale
 import com.github.gbandszxc.obt.playback.BurnInViewModel
+import com.github.gbandszxc.obt.playback.PlaybackStatus
 import com.github.gbandszxc.obt.playback.TrackImportResult
 import com.github.gbandszxc.obt.ui.burnin.BurnInTab
 import com.github.gbandszxc.obt.ui.history.HistoryTab
@@ -232,6 +233,13 @@ fun BurnInApp() {
                 sessions = sessions,
                 totalCompletedSeconds = totalCompletedSeconds,
                 modifier = contentModifier,
+                // 播放器空闲时才显示历史会话的「继续」入口（已有会话时续播会被忽略，直接隐藏）
+                showResumeActions = playbackState.status == PlaybackStatus.IDLE,
+                onResumeSession = { session ->
+                    // 暂停态续播：切回煲机页后表盘定格为暂停，由煲机页「继续/结束」恢复或终止
+                    burnViewModel.resumeSessionFromHistory(session)
+                    selectedTab = AppTab.BURN
+                },
             )
             AppTab.SETTINGS -> SettingsTab(
                 state = appSettings,

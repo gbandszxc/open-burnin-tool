@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import android.content.Context
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.AlertDialog
@@ -47,6 +48,7 @@ import com.github.gbandszxc.obt.data.BurnInSession
 import com.github.gbandszxc.obt.data.SessionStatus
 import com.github.gbandszxc.obt.domain.model.BurnPlans
 import com.github.gbandszxc.obt.domain.model.SoundSource
+import com.github.gbandszxc.obt.playback.BurnInViewModel
 import com.github.gbandszxc.obt.playback.formatBurnDuration
 import com.github.gbandszxc.obt.ui.HumanDurationPatterns
 import com.github.gbandszxc.obt.ui.formatDurationHuman
@@ -61,9 +63,15 @@ private const val LOAD_MORE_VISIBLE_THRESHOLD = 3
 /** 列表尾提示项的 key（与会话行的 id key 区分）。 */
 private const val HISTORY_FOOTER_KEY = "history_footer"
 
+/** 可从记录页续播的会话状态（进行中/已暂停；已完成与已放弃不可续）。 */
+private val RESUMABLE_STATUSES = setOf(SessionStatus.RUNNING, SessionStatus.PAUSED)
+
 /**
  * 记录 Tab：顶部小结（累计煲机 + 会话次数 + 清除入口）+ 分页会话列表；
  * 滚近列表末尾自动追加下一页，尾项给「加载中 / 共 N 条」提示；空态给引导文案。
+ *
+ * 历史续播：播放器空闲（[showResumeActions]）时，进行中/已暂停且可重建方案的会话行
+ * 显示「继续」按钮，点击经 [onResumeSession] 续播该会话（跳转煲机页、暂停态起步）。
  *
  * BurnInApp 已收集同一 Activity 级 [HistoryViewModel] 的已加载列表与累计时长传入；
  * 分页辅助状态（到底/加载中/总数）与清除动作经 viewModel(factory=...) 取同一单例
@@ -74,6 +82,8 @@ fun HistoryTab(
     sessions: List<BurnInSession>,
     totalCompletedSeconds: Long,
     modifier: Modifier = Modifier,
+    onResumeSession: (BurnInSession) -> Unit = {},
+    showResumeActions: Boolean = false,
 ) {
     val app = LocalContext.current.applicationContext as BurnInApplication
     val viewModel: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app))
@@ -129,7 +139,14 @@ fun HistoryTab(
             ),
         ) {
             items(sessions, key = { it.id }) { session ->
-                SessionRow(session)
+                SessionRow(
+                    session = session,
+                    showResumeButton = showResumeActions &&
+                        session.status in RESUMABLE_STATUSES &&
+                        session.completedSeconds > 0L &&
+                        BurnInViewModel.sessionResumableFromHistory(session),
+                    onResumeClick = { onResumeSession(session) },
+                )
             }
             item(key = HISTORY_FOOTER_KEY) {
                 HistoryFooter(
@@ -256,9 +273,18 @@ private fun HistoryFooter(
     }
 }
 
-/** 单条会话：日期时间 + 状态，方案与计划时长（自由煲机追加所用音效），实际已煲。 */
+/**
+ * 单条会话：日期时间 + 状态，方案与计划时长（自由煲机追加所用音效），实际已煲。
+ *
+ * 历史续播：[showResumeButton] 为真时在状态文本左侧显示「继续」播放三角按钮
+ * （48dp 触达、24dp 图标、primary 着色），点击经 [onResumeClick] 上抛续播。
+ */
 @Composable
-private fun SessionRow(session: BurnInSession) {
+private fun SessionRow(
+    session: BurnInSession,
+    showResumeButton: Boolean,
+    onResumeClick: () -> Unit,
+) {
     val statusColor = when (session.status) {
         SessionStatus.RUNNING, SessionStatus.PAUSED -> MaterialTheme.colorScheme.primary
         SessionStatus.COMPLETED, SessionStatus.ABANDONED -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -272,7 +298,6 @@ private fun SessionRow(session: BurnInSession) {
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -280,6 +305,16 @@ private fun SessionRow(session: BurnInSession) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            Spacer(Modifier.weight(1f))
+            if (showResumeButton) {
+                IconButton(onClick = onResumeClick) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = stringResource(R.string.cd_history_resume_session),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
             Text(
                 text = statusLabel(session.status),
                 style = MaterialTheme.typography.labelMedium,

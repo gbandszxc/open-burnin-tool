@@ -204,13 +204,18 @@ class PlaybackController(
      * - 会话落库时把 [resumeFromSeconds] 写入初始 completedSeconds（见
      *   BurnInRepository.startSession），使新会话自身即刻可续播。
      * 越界输入收敛到 [0, plan.totalSeconds]，不抛异常。
+     *
+     * 暂停起步：[startPaused] = true 时（历史记录页续播进行中/已暂停会话）完成会话创建、
+     * 进度引擎与音源定位后**不进入播放**，直接呈现与手动 [pause] 一致的暂停态
+     * （引擎暂停、进度落库、释放焦点、不持 WakeLock/拔耳机监听），前台服务照常拉起，
+     * 通知按暂停样式渲染；恢复走既有 [resume] 路径。
      */
-    fun start(plan: BurnPlan, resumeFromSeconds: Long = 0L) {
+    fun start(plan: BurnPlan, resumeFromSeconds: Long = 0L, startPaused: Boolean = false) {
         if (_state.value.status != PlaybackStatus.IDLE) {
             Log.w(TAG, "已有会话进行中，忽略重复 start")
             return
         }
-        scope.launch { startInternal(plan, resumeFromSeconds) }
+        scope.launch { startInternal(plan, resumeFromSeconds, startPaused) }
     }
 
     /** 暂停（用户触发）：释放焦点与 WakeLock，进度落库，状态置 PAUSED。 */
@@ -248,7 +253,7 @@ class PlaybackController(
     // 内部实现
     // ------------------------------------------------------------------
 
-    private suspend fun startInternal(plan: BurnPlan, resumeFromSeconds: Long = 0L) {
+    private suspend fun startInternal(plan: BurnPlan, resumeFromSeconds: Long = 0L, startPaused: Boolean = false) {
         val startedAtMillis = System.currentTimeMillis()
         // 续播起点收敛到合法区间；负值/超计划值按边界起步，不因脏输入中断
         val startAtSeconds = resumeFromSeconds.coerceIn(0L, plan.totalSeconds)
@@ -293,7 +298,14 @@ class PlaybackController(
             return
         }
 
-        engine = BurnProgressEngine(plannedSeconds = plan.totalSeconds, initialCompletedSeconds = startAtSeconds)
+        // 暂停起步时引擎直接以 PAUSED 态创建（锚点为空、暂停期间流逝时间不计入进度），
+        // 与「播放一秒后手动 pause()」的引擎状态一致；起点已达计划值由 init 强制 COMPLETED，
+        // 交由下方暂停分支的完成兜底处理
+        engine = BurnProgressEngine(
+            plannedSeconds = plan.totalSeconds,
+            initialCompletedSeconds = startAtSeconds,
+            initialStatus = if (startPaused) EngineStatus.PAUSED else EngineStatus.RUNNING,
+        )
         sequencer = BurnSequencer(plan)
         currentPlan = plan
         sessionId = newSessionId
@@ -319,10 +331,18 @@ class PlaybackController(
 
         // 音源按续播位置选：从第 startAtSeconds 秒起播时直接定位到所处阶段/轮换段
         val position = sequencer!!.positionAt(startAtSeconds)
+        // 暂停起步的极端边界：续播起点已达计划值（正常数据不会发生，防御历史脏数据），
+        // 引擎已被构造强制为 COMPLETED、无法呈现暂停态，直接按完成收尾
+        if (startPaused && engine!!.isCompleted) {
+            Log.w(TAG, "暂停起步但续播起点已达计划值（起点=$startAtSeconds），按完成收尾")
+            finishCompleted()
+            return
+        }
         val created = try {
             createPlayerFor(position)?.apply {
                 player.setGain(playerGainFor(position.volumeRatio))
-                player.start()
+                // 暂停起步不 start：播放器 prepared 待命（resume 走 start()，状态机等价）
+                if (!startPaused) player.start()
             }
         } catch (t: Throwable) {
             Log.e(TAG, "音源初始化失败，会话标记放弃", t)
@@ -343,21 +363,35 @@ class PlaybackController(
         activePlaylistIndex = created.playlistIndex
         activeLocalTrackName = created.localTrackName
         activeGain = playerGainFor(position.volumeRatio)
-        // 响度落位：系统音量模式按当前位置比例设系统音量（失败在此处即降级），增益模式已就位
-        syncLoudness(position.volumeRatio)
+        if (startPaused) {
+            // 暂停起步（历史记录续播）：不落位阶段响度（系统音量维持用户档位、已应用比例作废，
+            // 恢复播放时强制重设）、释放焦点、不持 WakeLock/拔耳机监听、不启动 ticker——
+            // 运行态与手动 pause() 后完全一致；进度与 PAUSED 状态即刻落库
+            restoreOriginalStreamVolume()
+            abandonAudioFocus()
+            scope.launch {
+                persistProgress()
+                updateSessionStatus(SessionStatus.PAUSED)
+            }
+            publishState()
+        } else {
+            // 响度落位：系统音量模式按当前位置比例设系统音量（失败在此处即降级），增益模式已就位
+            syncLoudness(position.volumeRatio)
 
-        acquireWakeLock()
-        registerBecomingNoisy()
-        publishState()
-        restartTicker()
+            acquireWakeLock()
+            registerBecomingNoisy()
+            publishState()
+            restartTicker()
+        }
 
-        // 状态就绪后再拉起前台服务，保证服务首帧通知即为播放中
+        // 状态就绪后再拉起前台服务，保证服务首帧通知即为播放中（暂停起步时即为暂停样式）
         val serviceIntent = Intent(context, BurnInService::class.java)
             .setAction(BurnInService.ACTION_START)
         ContextCompat.startForegroundService(context, serviceIntent)
         Log.i(
             TAG,
-            "煲机开始：session=$newSessionId plan=${plan.id} 总时长=${plan.totalSeconds}s " +
+            "煲机开始${if (startPaused) "（暂停起步）" else ""}：session=$newSessionId plan=${plan.id} " +
+                "总时长=${plan.totalSeconds}s " +
                 "起点=${startAtSeconds}s",
         )
     }

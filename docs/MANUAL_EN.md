@@ -120,6 +120,8 @@ The top of the History page shows a cumulative summary with the total burn-in ti
 
 Below is the history list, 20 items per page, ordered from newest to oldest start time. Scrolling near the bottom loads the next page automatically, and the end of the list reports how many items are loaded in total. Each row shows the session's time, status, plan and planned duration, and the actual burned-in time. There are four statuses: In progress, Paused, Completed and Stopped. Free burn-in sessions also show the sound source used at the time after the plan; when that source is local music, it shows the track name from the start of the session, or Local music if that track has since been deleted.
 
+When no burn-in session is running, an in-progress or paused row that already has progress shows a play triangle button. Tapping it resumes that session directly: the app switches back to the Burn-in page with the dial frozen in the paused state (at the burned time recorded for that session), where you can tap Resume to continue or Stop to give up. Plan sessions and free burn-in sessions with a built-in sound source can both be resumed this way; free burn-in sessions with local music do not show the button, because the playlist information is not stored in the record.
+
 Clearing all records asks for confirmation first, then deletes every record and resets the cumulative statistics. This cannot be undone.
 
 ## Settings
